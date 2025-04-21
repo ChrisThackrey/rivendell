@@ -147,10 +147,12 @@ repomix.config.json
 repomix-output.md
 .repomixignore
 dump.rdb
-**/.mcp.json
-**/.env
-**/CLAUDE.md
-**/.cursorrules
+**/*.mcp.json
+**/*.env
+**/*.CLAUDE.md
+**/*.cursorrules
+**/*.current_schema.txt
+**/*.dump.rdb
 
 # dependencies
 /node_modules
