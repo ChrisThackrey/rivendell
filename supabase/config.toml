@@ -82,6 +82,6 @@ gcp_project_id = ""
 gcp_project_number = ""
 gcp_jwt_path = "supabase/gcloud.json"
 
-# Fix the "Driver not supported" issue with migrations
+# Database configuration for migrations
 [database]
-migrationsDatabaseUrl = "postgresql://postgres:postgres@127.0.0.1:54322/postgres" 
+migrationsDatabaseUrl = "postgresql://postgres:postgres@127.0.0.1:54322/postgres"

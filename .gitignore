@@ -140,6 +140,7 @@ dist
 .claude/
 .cursor/
 .vscode/
+supabase/.temp/
 CLAUDE.md
 .cursorrules
 Claude.local.md

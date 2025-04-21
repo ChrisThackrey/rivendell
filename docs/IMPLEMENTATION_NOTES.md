@@ -12,7 +12,7 @@ This implementation adds Supabase database integration with vector embeddings fo
   - Server-side API route for generating embeddings
   - Uses OpenAI's `text-embedding-3-small` model
   - Handles API key securely server-side
-  
+
 - **/api/evaluate** (`/app/api/evaluate/route.ts`)
   - Server-side API route for evaluating AI responses
   - Uses OpenAI's GPT-4o model to assess quality

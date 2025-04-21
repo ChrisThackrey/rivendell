@@ -5,7 +5,7 @@
 ### Fixed
 
 - Fixed code file storage and lookup to ensure consistent data in both document metadata and codefiles table
-- Added dual-storage mechanism to maintain code files in both locations for backwards compatibility 
+- Added dual-storage mechanism to maintain code files in both locations for backwards compatibility
 - Enhanced all API routes that create code files to update document metadata for redundancy
 - Added step-specific tracking of code files in document metadata for improved lookups
 
@@ -65,7 +65,7 @@
 - Enhanced Monte Carlo Visualization Component
   - Added model filtering capability for improved data analysis
   - Implemented PointDetectionResult interface for type safety in point detection
-  - Added model count display in legend to show distribution statistics 
+  - Added model count display in legend to show distribution statistics
   - Enhanced camera focusing mechanism with priority-based targeting
   - Improved deselection prevention system to avoid accidental point loss
   - Added optimized batch ID fetching and sorting with timestamp extraction
@@ -135,7 +135,7 @@
 
 - Completely refactored the pathway-visualizer to use structured solutions
   - Added new structured-solution API endpoint to generate complete solutions
-  - Each AI model call now creates a single 6-step structured response 
+  - Each AI model call now creates a single 6-step structured response
   - Run ID properly increments for each complete model run
   - Removed step IDs from metadata for simpler tracking
   - Switched to a flat array-based solution storage system
@@ -185,7 +185,7 @@
   - Added comprehensive scoring metrics (accuracy, complexity, efficiency, etc.)
   - Created decision classification system (RECOMMENDED, VIABLE, PROBLEMATIC)
   - Integrated evaluation results into metadata storage
-  
+
 - Multiple Run Support in Pathway Visualizer
   - Refactored pathway-visualizer to support multiple runs per model
   - Implemented dynamic temperature adjustment based on intensity settings
