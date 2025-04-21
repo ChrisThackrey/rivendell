@@ -39,6 +39,8 @@ import {
   fetchAvailableBatchIds,
   fetchMonteCarloDataForBatch,
 } from "@/lib/monte-carlo-service";
+// Define DEBUG based on environment variable
+const DEBUG = process.env.NODE_ENV !== 'production';
 
 // Get color for a model (point colors)
 const getModelColor = (model: string): THREE.Color => {
@@ -1637,20 +1639,18 @@ export default function MonteCarloVisualizer({
   const handleFocusCamera = useCallback(() => {
     // First priority: Focus on user-selected points if they exist
     if (selectedPoint) {
-      console.log(
-        "Focusing camera on user-selected point and its closest related points",
-      );
+      if (DEBUG) console.debug("Focusing camera on user-selected point and related points");
       const pointsToFocus = [selectedPoint, ...selectedClosestPoints];
       focusCameraOnAllPoints(pointsToFocus);
     }
     // Second priority: Focus on cluster-selected points if they exist
     else if (selectedClusterPoints.length > 0) {
-      console.log("Focusing camera on selected cluster points");
+      if (DEBUG) console.debug("Focusing camera on selected cluster points");
       focusCameraOnAllPoints(selectedClusterPoints);
     }
     // Third priority (fallback): Focus on all points if no selection exists
     else if (filteredData.length > 0) {
-      console.log("Focusing camera on all points");
+      if (DEBUG) console.debug("Focusing camera on all points");
       focusCameraOnAllPoints(filteredData);
     }
   }, [
@@ -1678,13 +1678,13 @@ export default function MonteCarloVisualizer({
 
   // Add a separate function to fetch batch IDs directly
   const fetchBatchIds = useCallback(async () => {
-    console.log("Fetching all available batch IDs from Supabase...");
+    if (DEBUG) console.debug("Fetching available batch IDs...");
     setIsFetchingBatches(true);
 
     try {
       // Get all available batch IDs from the database
       const batchIds = await fetchAvailableBatchIds();
-      console.log(`Fetched ${batchIds.length} batch IDs from Supabase`);
+      if (DEBUG) console.debug(`Fetched ${batchIds.length} batch IDs`);
 
       if (batchIds.length > 0) {
         // Sort batch IDs to ensure consistent ordering
@@ -1705,7 +1705,7 @@ export default function MonteCarloVisualizer({
 
         setAllBatchIds(sortedBatchIds);
       } else {
-        console.log("No batch IDs found in the database");
+        if (DEBUG) console.debug("No batch IDs found");
         setAllBatchIds([]);
       }
     } catch (error) {
@@ -1724,115 +1724,66 @@ export default function MonteCarloVisualizer({
   }, [allBatchIds.length, isFetchingBatches, fetchBatchIds]);
 
   // Handler for batch selection - use the fetch function and focus the camera
-  const handleBatchChange = useCallback(
-    (value: string) => {
-      // We no longer have an "all" case - just set the batch ID directly
-      setSelectedBatchId(value);
+  const handleBatchChange = useCallback(async (value: string) => {
+    // Set the selected batch and start loading
+    setSelectedBatchId(value)
+    setIsLoading(true)
 
-      // Always fetch data for the specific batch
-      setIsLoading(true);
+    // Refresh the full batch list
+    await fetchBatchIds()
 
-      // STEP 1: Always fetch all available batch IDs to keep the sidebar up-to-date
-      fetchBatchIds();
+    try {
+      if (DEBUG) console.debug(`Loading data for batch ${value}...`);
+      const { dataPoints } = await fetchMonteCarloDataForBatch(value)
 
-      // STEP 2: Start loading data for the selected batch
-      console.log(`Loading data for batch ${value}...`);
+      // STEP: If no data for this batch, clear and exit
+      if (dataPoints.length === 0) {
+        if (DEBUG) console.debug(`No data found for batch ${value}`);
+        setData([])
+        setFilteredData([])
+        setClusters([])
+        return
+      }
 
-      fetchMonteCarloDataForBatch(value)
-        .then((response) => {
-          const { dataPoints, batchIds } = response;
+      if (DEBUG) console.debug(`Generating clusters for ${dataPoints.length} points...`);
+      const generatedClusters = await generateClusters(dataPoints)
 
-          // STEP 3: Update the batch IDs from the response to ensure we have all available batches
-          if (batchIds && batchIds.length > 0) {
-            console.log(
-              `Received ${batchIds.length} batch IDs from data fetch`,
-            );
+      if (DEBUG) console.debug(`Assigning ${generatedClusters.length} clusters to data points...`);
+      const dataWithClusters: PointWithCluster[] = dataPoints.map((point) => {
+        const cluster = generatedClusters.find((c) =>
+          c.points.some((p) => p.id === point.id),
+        )
+        return {
+          ...point,
+          cluster: cluster?.id,
+        }
+      })
 
-            // Sort batch IDs to ensure consistent ordering
-            const sortedBatchIds = [...batchIds].sort((a, b) => {
-              // Extract timestamps if available (batch_TIMESTAMP_xxx format)
-              const getTimestamp = (id: string) => {
-                const match = id.match(/batch_(\d+)/);
-                return match ? parseInt(match[1]) : 0;
-              };
+      if (DEBUG) console.debug(`Generating titles for clusters...`);
+      const clustersWithTitles = await generateClusterTitles(generatedClusters)
 
-              const timeA = getTimestamp(a);
-              const timeB = getTimestamp(b);
+      if (DEBUG) console.debug(`Updating state with ${dataWithClusters.length} points and ${clustersWithTitles.length} clusters`);
+      setData(dataWithClusters)
+      setFilteredData(dataWithClusters)
+      setClusters(clustersWithTitles)
 
-              // Sort descending (newer first)
-              return timeB - timeA;
-            });
-
-            // Merge with any existing batch IDs to ensure we have a complete list
-            setAllBatchIds((prevIds) => {
-              const combinedIds = new Set([...prevIds, ...sortedBatchIds]);
-              return Array.from(combinedIds);
-            });
-          }
-
-          // STEP 4: Check if we have data for this batch
-          if (dataPoints.length === 0) {
-            console.log(`No data found for batch ${value}`);
-            setIsLoading(false);
-            // Clear existing data when switching to a batch with no data
-            setData([]);
-            setFilteredData([]);
-            setClusters([]);
-            return;
-          }
-
-          // STEP 5: Generate clusters from the data points
-          console.log(`Generating clusters for ${dataPoints.length} points...`);
-          return generateClusters(dataPoints).then((generatedClusters) => {
-            // STEP 6: Assign cluster IDs to each data point
-            console.log(
-              `Assigning ${generatedClusters.length} clusters to data points...`,
-            );
-            const dataWithClusters: PointWithCluster[] = dataPoints.map(
-              (point) => {
-                // Find which cluster contains this point
-                const cluster = generatedClusters.find((c) =>
-                  c.points.some((p) => p.id === point.id),
-                );
-
-                return {
-                  ...point,
-                  cluster: cluster?.id,
-                };
-              },
-            );
-
-            // STEP 7: Generate titles for each cluster
-            console.log(`Generating titles for clusters...`);
-            return generateClusterTitles(generatedClusters).then(
-              (clustersWithTitles) => {
-                // STEP 8: Update state with the processed data
-                console.log(
-                  `Setting data with ${dataWithClusters.length} points and ${clustersWithTitles.length} clusters`,
-                );
-                setData(dataWithClusters);
-                setFilteredData(dataWithClusters);
-                setClusters(clustersWithTitles);
-                setIsLoading(false);
-
-                // STEP 9: Focus camera on all points after loading batch data
-                console.log(`Focusing camera on points...`);
-                focusCameraOnAllPoints(dataWithClusters);
-              },
-            );
-          });
-        })
-        .catch((error) => {
-          console.error(`Error fetching data for batch ${value}:`, error);
-          setIsLoading(false);
-          // Clear data on error
-          setData([]);
-          setFilteredData([]);
-          setClusters([]);
-        });
-    },
-    [focusCameraOnAllPoints, fetchBatchIds],
-  );
+      if (DEBUG) console.debug(`Focusing camera on points...`);
+      focusCameraOnAllPoints(dataWithClusters)
+    } catch (error) {
+      console.error(`Error fetching data for batch ${value}:`, error);
+      setData([])
+      setFilteredData([])
+      setClusters([])
+    } finally {
+      setIsLoading(false)
+    }
+  }, [
+    fetchBatchIds,
+    fetchMonteCarloDataForBatch,
+    generateClusters,
+    generateClusterTitles,
+    focusCameraOnAllPoints,
+  ])
 
   // Fetch real data from the database
   useEffect(() => {
@@ -1856,53 +1807,20 @@ export default function MonteCarloVisualizer({
       if (!isMounted) return;
       setIsLoading(true);
       try {
-        // Fetch the data from the database using the selected batch ID
-        const { dataPoints, batchIds } =
-          await fetchMonteCarloData(selectedBatchId);
+        // Refresh the full batch list from Supabase
+        await fetchBatchIds()
 
-        if (!isMounted) return;
+        // Fetch Monte Carlo data for the selected batch
+        const { dataPoints } = await fetchMonteCarloData(selectedBatchId)
+
+        if (!isMounted) return
 
         if (dataPoints.length === 0) {
           console.log(
             `No data found for batch ${selectedBatchId}, showing empty state`,
-          );
-          setIsLoading(false);
-          return;
-        }
-
-        // Process the batch IDs to ensure we have all available batches
-        if (batchIds && batchIds.length > 0) {
-          console.log(
-            `Loaded ${batchIds.length} batch IDs for Monte Carlo visualization`,
-          );
-
-          // Sort batch IDs to ensure consistent ordering
-          const sortedBatchIds = [...batchIds].sort((a, b) => {
-            // Extract timestamps if available (batch_TIMESTAMP_xxx format)
-            const getTimestamp = (id: string) => {
-              const match = id.match(/batch_(\d+)/);
-              return match ? parseInt(match[1]) : 0;
-            };
-
-            const timeA = getTimestamp(a);
-            const timeB = getTimestamp(b);
-
-            // Sort descending (newer first)
-            return timeB - timeA;
-          });
-
-          // Merge with any existing batch IDs to ensure we have a complete list
-          setAllBatchIds((prevIds) => {
-            // If we have no previous IDs, just use the sorted ones
-            if (prevIds.length === 0) return sortedBatchIds;
-
-            // Otherwise, combine without duplicates
-            const combinedIds = new Set([...prevIds, ...sortedBatchIds]);
-            return Array.from(combinedIds);
-          });
-        } else {
-          // If no batch IDs returned, fetch all available ones
-          fetchBatchIds();
+          )
+          setIsLoading(false)
+          return
         }
 
         // Generate clusters from the data points
@@ -2281,7 +2199,7 @@ export default function MonteCarloVisualizer({
           </h3>
         </div>
 
-        <div className="relative h-full">
+        <div className="relative w-full h-full overflow-hidden">
           {/* Focus button - positioned in the top-left of the 3D view */}
           {filteredData.length > 0 && (
             <div className="absolute top-4 left-4 z-50">
@@ -2314,20 +2232,39 @@ export default function MonteCarloVisualizer({
           )}
 
           <Canvas
+            className="absolute inset-0"
             camera={{ position: cameraRef.current.position, fov: 50 }}
+            onCreated={({ gl, camera, size }) => {
+              // Manage pixel ratio and sizing to match the canvas container
+              gl.setPixelRatio(window.devicePixelRatio)
+              gl.setSize(size.width, size.height)
+              // Update camera projection for correct aspect
+              const perspectiveCamera = camera as THREE.PerspectiveCamera
+              perspectiveCamera.aspect = size.width / size.height
+              perspectiveCamera.updateProjectionMatrix()
+              // Handle WebGL context loss and restoration
+              gl.domElement.addEventListener("webglcontextlost", (e) => {
+                e.preventDefault()
+                console.warn("WebGL context lost, attempting restore")
+              })
+              gl.domElement.addEventListener("webglcontextrestored", () => {
+                console.log("WebGL context restored")
+              })
+            }}
             gl={{
               powerPreference: "high-performance",
               antialias: true,
               stencil: false,
               depth: true,
               alpha: true,
-              preserveDrawingBuffer: true, // Add this to help prevent context loss
             }}
             dpr={[1, 2]} // Better handling of different pixel densities
             resize={{ scroll: false }}
             frameloop="demand"
             key="main-canvas" // Keep the key stable to prevent remounts
             style={{
+              width: "100%",
+              height: "100%",
               background: "linear-gradient(to bottom, #f8fafc, #f1f5f9)",
             }} // Light gradient background
           >

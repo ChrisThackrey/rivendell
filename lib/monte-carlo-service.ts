@@ -36,55 +36,58 @@ export type MonteCarloCluster = {
   isSelected: boolean;
 };
 
+// Add a type for the RPC result
+// Type for available batches returned by RPC
+type AvailableBatchRow = {
+  batch_id: string;
+  step_count: number;
+  latest_created_at: string;
+};
+
 /**
  * Fetch available batch IDs from the database
  */
 export async function fetchAvailableBatchIds(): Promise<string[]> {
   try {
-    console.log("Fetching available batch IDs...");
+    console.info("[MonteCarloService] Fetching available batch IDs...");
 
-    // Try to connect to the database
-    try {
-      const { error: connectionError } = await supabase
-        .from("documents")
-        .select("id")
-        .limit(1);
-
-      if (connectionError) {
-        console.error("Database connection error:", connectionError);
-        return [];
-      }
-    } catch (connError) {
-      console.error("Failed to connect to database:", connError);
-      return [];
-    }
-
-    // Query distinct batch_ids from the documents table with the latest batches first
-    const { data, error } = await supabase
+    // Fetch batch_id and created_at fields for all documents (limit for pagination safety)
+    const { data: rawRows, error } = await supabase
       .from("documents")
       .select("batch_id, created_at")
       .not("batch_id", "is", null)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(1000);
 
     if (error) {
-      console.error("Error fetching batch IDs:", error);
+      console.error("[MonteCarloService] Error fetching batch IDs:", error);
       return [];
     }
 
-    // Extract unique batch IDs while preserving the descending order of created_at
-    const uniqueBatchIds = new Map<string, string>();
-    data.forEach((doc) => {
-      if (doc.batch_id && !uniqueBatchIds.has(doc.batch_id)) {
-        uniqueBatchIds.set(doc.batch_id, doc.batch_id);
+    // Cast rows to known type
+    const rows = (rawRows as Array<{ batch_id: string | null; created_at: string }>) || [];
+    if (rows.length === 0) {
+      console.warn("[MonteCarloService] No batch entries returned");
+      return [];
+    }
+
+    // Extract and dedupe batch IDs in order of created_at
+    const seen = new Set<string>();
+    const batchIds: string[] = [];
+    rows.forEach((row) => {
+      const id = row.batch_id;
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        batchIds.push(id);
       }
     });
 
-    const batchIds = Array.from(uniqueBatchIds.values());
-
-    console.log(`Found ${batchIds.length} unique batch IDs`);
+    console.info(
+      `[MonteCarloService] Retrieved ${batchIds.length} distinct batch IDs`,
+    );
     return batchIds;
-  } catch (error) {
-    console.error("Error in fetchAvailableBatchIds:", error);
+  } catch (err) {
+    console.error("[MonteCarloService] fetchAvailableBatchIds error:", err);
     return [];
   }
 }
@@ -96,9 +99,9 @@ export async function fetchMonteCarloData(
   batchId?: string | null,
 ): Promise<{ dataPoints: MonteCarloDataPoint[]; batchIds: string[] }> {
   try {
-    console.log("Fetching Monte Carlo data from database...");
+    console.info("[MonteCarloService] Fetching Monte Carlo data...");
     if (batchId) {
-      console.log(`Filtering by batch ID: ${batchId}`);
+      console.info(`[MonteCarloService] Filtering by batch ID: ${batchId}`);
     }
 
     // First check if we can connect to the database
@@ -122,7 +125,7 @@ export async function fetchMonteCarloData(
     let query = supabase
       .from("documents")
       .select("id, content, metadata, batch_id")
-      .is("metadata->>stepNumber", null); // Non-step documents (original solution documents)
+      .is("metadata->>stepNumber", null); // original solution docs have stepNumber null
 
     // Add batch filter if provided
     if (batchId) {
@@ -132,14 +135,14 @@ export async function fetchMonteCarloData(
     // Execute the query
     let { data } = await query
       .order("created_at", { ascending: false })
-      .limit(100);
+      .range(0, 10000);
 
     // Error handling moved to try/catch block
 
     // If no data found for the specific batch, try a fallback approach by querying steps
     if ((!data || data.length === 0) && batchId) {
-      console.log(
-        `No direct documents found for batch ${batchId}, trying fallback to step documents`,
+      console.info(
+        `[MonteCarloService] No direct documents for batch ${batchId}, falling back to step documents`,
       );
 
       // Try to get step documents for this batch
@@ -151,10 +154,13 @@ export async function fetchMonteCarloData(
         .order("created_at", { ascending: false });
 
       if (stepError) {
-        console.error("Error fetching step documents:", stepError);
+        console.error(
+          `[MonteCarloService] Error fetching step documents for batch ${batchId}:`,
+          stepError,
+        );
       } else if (stepData && stepData.length > 0) {
-        console.log(
-          `Found ${stepData.length} step documents for batch ${batchId}`,
+        console.info(
+          `[MonteCarloService] Found ${stepData.length} step documents for batch ${batchId}`,
         );
         // Use the step documents as fallback data
         data = stepData;
@@ -163,17 +169,19 @@ export async function fetchMonteCarloData(
 
     // If still no data found, return mock data
     if (!data || data.length === 0) {
-      console.log(
+      console.info(
         batchId
-          ? `No data found for batch ${batchId}, using mock Monte Carlo data`
-          : "No real data found, using mock Monte Carlo data",
+          ? `[MonteCarloService] No data for batch ${batchId}, using mock Monte Carlo data`
+          : `[MonteCarloService] No real data found, using mock Monte Carlo data`,
       );
       return { dataPoints: generateMockMonteCarloData(), batchIds: [] };
     }
 
-    console.log(`Found ${data.length} documents for Monte Carlo visualization`);
+    console.info(
+      `[MonteCarloService] Fetched ${data.length} documents for visualization${batchId ? ` (batch ${batchId})` : ''}`,
+    );
 
-    // Extract unique batch IDs
+    // Extract unique batch IDs within this data set
     const batchIds = Array.from(
       new Set(
         data
@@ -182,7 +190,8 @@ export async function fetchMonteCarloData(
       ),
     ).sort();
 
-    console.log(`Found ${batchIds.length} unique batch IDs`);
+    // Log related batch IDs count
+    // console.info(`[MonteCarloService] Found ${batchIds.length} unique batch IDs in fetched data${batchId ? ` for batch ${batchId}` : ''}`);
 
     // Process the data into our format
     const dataPoints = data.map((document, index) => {
