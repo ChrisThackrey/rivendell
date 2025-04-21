@@ -137,8 +137,9 @@ dist
 
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 .mcp.json
-.env
-.env.local
+.claude/
+.cursor/
+.vscode/
 CLAUDE.md
 .cursorrules
 Claude.local.md
