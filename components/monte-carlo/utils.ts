@@ -2,40 +2,40 @@ import * as THREE from "three"
 import type { PointWithCluster } from "@/lib/monte-carlo-service"
 import { normalizeAndSpreadPoints, addJitterToPoints } from "@/lib/monte-carlo-service"
 
-// Legend colors (for display in the legend)
+// Legend colors exactly as shown in the ModelLegend component
 export const MODEL_LEGEND_COLORS = {
-  "gpt-4": "#93c5fd",   // blue-300
-  "claude": "#c4b5fd",  // violet-300
-  "o1": "#86efac",      // green-300
-  "o3": "#fcd34d",      // amber-300
-  "other": "#cbd5e1",   // slate-300
+  "gpt-4": "#93c5fd",   // Light blue (GPT-4o)
+  "claude": "#c4b5fd",  // Light purple (Claude)
+  "o1": "#86efac",      // Light green (o1)
+  "o3": "#fcd34d",      // Light amber (o3-mini)
+  "other": "#cbd5e1",   // Light gray (Other)
 };
 
-// Brighter colors for 3D visualization (for better visibility)
-export const MODEL_BRIGHT_COLORS = {
-  "gpt-4": "#3b82f6",   // blue-500
-  "claude": "#8b5cf6",  // violet-500 
-  "o1": "#22c55e",      // green-500
-  "o3": "#f59e0b",      // amber-500
-  "other": "#64748b",   // slate-500
+// Visualization colors exactly matching the screenshot
+export const MODEL_VIZ_COLORS = {
+  "gpt-4": "#3b82f6",   // Bright blue (GPT-4o)
+  "claude": "#8b5cf6",  // Purple (Claude)
+  "o1": "#22c55e",      // Green (o1)
+  "o3": "#f59e0b",      // Amber (o3-mini)
+  "other": "#64748b",   // Gray (Other)
 };
 
-// Get color for a model (point colors) - returns bright color for better 3D visibility
+// Get color for a model (point colors) - for the 3D view
 export const getModelColor = (model: string): THREE.Color => {
   const modelLower = model.toLowerCase().trim()
   if (modelLower.includes("gpt-4o") || modelLower.includes("gpt4o") || modelLower.includes("gpt-4")) {
-    return new THREE.Color(MODEL_BRIGHT_COLORS["gpt-4"])
+    return new THREE.Color(MODEL_VIZ_COLORS["gpt-4"])
   }
   if (modelLower.includes("claude-sonnet") || modelLower.includes("claude")) {
-    return new THREE.Color(MODEL_BRIGHT_COLORS.claude)
+    return new THREE.Color(MODEL_VIZ_COLORS.claude)
   }
   if (modelLower.includes("o1")) {
-    return new THREE.Color(MODEL_BRIGHT_COLORS.o1)
+    return new THREE.Color(MODEL_VIZ_COLORS.o1)
   }
   if (modelLower.includes("o3-mini") || modelLower.includes("o3")) {
-    return new THREE.Color(MODEL_BRIGHT_COLORS.o3)
+    return new THREE.Color(MODEL_VIZ_COLORS.o3)
   }
-  return new THREE.Color(MODEL_BRIGHT_COLORS.other)
+  return new THREE.Color(MODEL_VIZ_COLORS.other)
 }
 
 // Get the legend color for a model (for UI display)
@@ -56,13 +56,17 @@ export const getModelLegendColor = (model: string): string => {
   return MODEL_LEGEND_COLORS.other
 }
 
+// Selection colors from the legend - these match the screenshot exactly
+export const SELECTION_COLOR = "#f97316";  // orange-500 - User Selection
+export const CLUSTER_SELECTION_COLOR = "#4ade80"; // green-400 - Cluster Selection
+
 // Get hex color string for selection and lines
 export const getSelectionColor = (
   type: "point" | "cluster" | "hover" = "cluster",
 ): string => {
-  if (type === "point") return "#f97316" // Orange-500 for selected points
-  if (type === "hover") return "#f97316" // Same orange for hover state
-  return "#4ade80" // Green-400 for clusters
+  if (type === "point") return SELECTION_COLOR // Orange-500 for selected points
+  if (type === "hover") return SELECTION_COLOR // Same orange for hover state
+  return CLUSTER_SELECTION_COLOR // Green-400 for clusters
 }
 
 // Check if a point is in a selected cluster

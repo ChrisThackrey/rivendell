@@ -5,7 +5,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Instances, Instance } from '@react-three/drei';
 import type { PointWithCluster } from '@/lib/monte-carlo-service';
-import { findClosestPoints, MODEL_BRIGHT_COLORS } from '../utils';
+import { findClosestPoints, MODEL_VIZ_COLORS, SELECTION_COLOR, CLUSTER_SELECTION_COLOR } from '../utils';
 
 interface PointsProps {
   data: PointWithCluster[];
@@ -18,10 +18,6 @@ interface PointsProps {
   isCameraMovingRef: React.RefObject<boolean>;
   filteredData: PointWithCluster[]; 
 }
-
-// Selection colors matching ModelLegend
-const SELECTION_COLOR = "#f97316";  // orange-500
-const CLUSTER_SELECTION_COLOR = "#4ade80"; // green-400
 
 export function Points({
   data,
@@ -106,7 +102,7 @@ export function Points({
   // Get color for a point based on its state
   const getPointColor = (pointId: string): string => {
     const pointState = getRelatedPoints.get(pointId);
-    if (!pointState) return MODEL_BRIGHT_COLORS.other;
+    if (!pointState) return MODEL_VIZ_COLORS.other;
     
     const { isSelected, isHovered, isClosestToSelected, isClosestToHovered, isInSelectedCluster } = pointState;
     
@@ -121,22 +117,22 @@ export function Points({
     
     // Default: use model color based on the point's model
     const point = data.find(p => p.id === pointId);
-    if (!point) return MODEL_BRIGHT_COLORS.other;
+    if (!point) return MODEL_VIZ_COLORS.other;
     
     const modelLower = point.model.toLowerCase().trim();
     if (modelLower.includes("gpt-4") || modelLower.includes("gpt4") || modelLower.includes("gpt-4o")) {
-      return MODEL_BRIGHT_COLORS["gpt-4"];
+      return MODEL_VIZ_COLORS["gpt-4"];
     }
     if (modelLower.includes("claude-sonnet") || modelLower.includes("claude")) {
-      return MODEL_BRIGHT_COLORS.claude;
+      return MODEL_VIZ_COLORS.claude;
     }
     if (modelLower.includes("o1")) {
-      return MODEL_BRIGHT_COLORS.o1;
+      return MODEL_VIZ_COLORS.o1;
     }
     if (modelLower.includes("o3-mini") || modelLower.includes("o3")) {
-      return MODEL_BRIGHT_COLORS.o3;
+      return MODEL_VIZ_COLORS.o3;
     }
-    return MODEL_BRIGHT_COLORS.other;
+    return MODEL_VIZ_COLORS.other;
   };
 
   // Add subtle effects based on state
@@ -145,15 +141,16 @@ export function Points({
     if (!pointState) return 1;
     
     const { isSelected, isHovered } = pointState;
-    if (isSelected) return 1.3; // Make selected points larger
-    if (isHovered) return 1.2; // Make hovered points slightly larger
+    if (isSelected) return 1.2; // Make selected points slightly larger 
+    if (isHovered) return 1.1; // Make hovered points slightly larger
     return 1;
   };
 
   return (
     <group ref={groupRef}>
       <Instances limit={data.length}>
-        <sphereGeometry args={[0.15, 16, 16]} />
+        {/* Use smaller radius for the spheres (0.12 instead of 0.15) */}
+        <sphereGeometry args={[0.12, 16, 16]} />
         <meshStandardMaterial roughness={0.4} metalness={0.1} />
         
         {data.map((point, index) => (
