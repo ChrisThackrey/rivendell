@@ -6,10 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import MonteCarloVisualizer from "@/components/monte-carlo-visualizer";
 import { Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
-
-export const revalidate = 0; // Force dynamic rendering
-
-const MonteCarloPage = () => {
+function MonteCarloPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const ensembleId = searchParams.get("ensembleId") || undefined;
@@ -65,7 +62,7 @@ const MonteCarloPage = () => {
         </main>
       </Suspense>
   );
-};
+}
 
 export default dynamic(() => Promise.resolve(MonteCarloPage), {
   ssr: false,
