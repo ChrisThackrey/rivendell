@@ -8,8 +8,8 @@ import {
   fetchAvailableBatchIds,
   normalizeAndSpreadPoints,
   addJitterToPoints,
-  PointWithCluster,
 } from "@/lib/monte-carlo-service";
+import type { PointWithCluster } from '@/lib/monte-carlo-service';
 
 interface UseMonteCarloDataProps {
   initialBatchId?: string | null;
