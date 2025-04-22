@@ -46,22 +46,89 @@ describe('CodeFile Service Tests', () => {
   const mockCodeFileId = 'test-codefile-id';
 
   beforeEach(() => {
-    // Mocks are set up in the vi.mock() calls above
+    // Reset all mocks
+    vi.clearAllMocks();
+    
+    // Set up document service mock to succeed by default
+    vi.spyOn(documentService, 'ensureDocumentExists').mockResolvedValue(MOCK_DOCUMENT_ID);
+    
+    // Set up embedding service mock to succeed by default
+    vi.spyOn(embeddingService, 'generateEmbedding').mockResolvedValue(MOCK_EMBEDDING);
     
     // Set up supabase mock returns
     const mockSupabase = supabase as any;
     
-    // Mock insert operation
-    mockSupabase.from.mockReturnValue(mockSupabase);
-    mockSupabase.insert.mockReturnValue(mockSupabase);
-    mockSupabase.select.mockReturnValue(mockSupabase);
-    mockSupabase.single.mockResolvedValue({
-      data: { id: mockCodeFileId },
-      error: null
+    // Mock from and chained methods
+    mockSupabase.from.mockImplementation((table) => {
+      return {
+        insert: (data) => {
+          // This makes the data accessible for tests
+          mockSupabase._lastInsertData = data;
+          return {
+            select: () => ({
+              single: vi.fn().mockResolvedValue({
+                data: { id: mockCodeFileId },
+                error: null
+              })
+            })
+          };
+        },
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        single: vi.fn().mockResolvedValue({
+          data: null,
+          error: null
+        })
+      };
     });
     
-    // Mock rpc calls
-    mockSupabase.rpc.mockReturnValue(mockSupabase);
+    // Mock rpc calls with proper implementation
+    mockSupabase.rpc.mockImplementation((funcName, params) => {
+      if (funcName === 'get_codefiles_by_document_id') {
+        return {
+          data: [
+            {
+              id: 'file1',
+              document_id: MOCK_DOCUMENT_ID,
+              filename: 'test1.js',
+              language: 'javascript',
+              code_content: 'console.log("test1")',
+              metadata: {},
+              created_at: new Date().toISOString()
+            },
+            {
+              id: 'file2',
+              document_id: MOCK_DOCUMENT_ID,
+              filename: 'test2.js',
+              language: 'javascript',
+              code_content: 'console.log("test2")',
+              metadata: {},
+              created_at: new Date().toISOString()
+            }
+          ],
+          error: null
+        };
+      } else if (funcName === 'match_codefiles') {
+        return {
+          data: [
+            {
+              id: 'file1',
+              document_id: MOCK_DOCUMENT_ID,
+              filename: 'similar1.js',
+              language: 'javascript',
+              code_content: 'function hello() { console.log("hello"); }',
+              metadata: {},
+              similarity: 0.92,
+              created_at: new Date().toISOString()
+            }
+          ],
+          error: null
+        };
+      }
+      return { data: null, error: { message: 'Function not mocked: ' + funcName } };
+    });
   });
 
   afterEach(() => {
@@ -83,15 +150,15 @@ describe('CodeFile Service Tests', () => {
       // Verify the document existence check was called
       expect(documentService.ensureDocumentExists).toHaveBeenCalledWith(MOCK_DOCUMENT_ID);
       
-      // Verify embedding generation is triggered (but can't check arguments due to mocking)
-      // Since we mocked at module level, we can't check specific arguments
+      // Verify embedding generation is triggered
+      expect(embeddingService.generateEmbedding).toHaveBeenCalled();
       
       // Verify supabase insert operation
       expect(supabase.from).toHaveBeenCalledWith('codefiles');
       
       // Verify expected parameters were passed
-      const insertCall = (supabase.from('codefiles').insert as any).mock.calls[0][0];
-      expect(insertCall).toMatchObject({
+      const insertData = (supabase as any)._lastInsertData;
+      expect(insertData).toMatchObject({
         document_id: MOCK_DOCUMENT_ID,
         batch_id: MOCK_BATCH_ID,
         run_id: MOCK_RUN_ID,
@@ -145,8 +212,8 @@ describe('CodeFile Service Tests', () => {
       );
       
       // Verify metadata contains the original ID
-      const insertCall = (supabase.from('codefiles').insert as any).mock.calls[0][0];
-      expect(insertCall.metadata).toMatchObject({
+      const insertData = (supabase as any)._lastInsertData;
+      expect(insertData?.metadata).toMatchObject({
         originalDocumentId: originalId
       });
       
