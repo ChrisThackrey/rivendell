@@ -16,6 +16,11 @@ export type CodeFile = {
   code: string;
   language?: string;
   id?: string;
+  source?: string;
+  stepInfo?: {
+    runId?: number | string;
+    stepNumber?: number | null;
+  };
 };
 
 export type CodeBlockProps = {
@@ -83,6 +88,7 @@ export type CodeBlockCodeProps = {
     runId?: number | string;
     source?: string;
     description?: string;
+    fetchSource?: string;
   };
 } & React.HTMLProps<HTMLDivElement>;
 

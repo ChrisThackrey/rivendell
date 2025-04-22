@@ -34,13 +34,13 @@ Refactoring the large `MonteCarloVisualizer.tsx` component into smaller, more ma
 
 ## Implementation Plan
 
-1.  ✅ **Isolate Logic:** Extract data fetching, state management, and camera control logic into custom hooks.
-2.  ✅ **Isolate Utilities:** Move general helper functions to `utils.ts`.
-3.  ✅ **Decompose UI:** Create separate components for distinct UI parts (Sidebar, Details Panel, Legend).
-4.  ✅ **Decompose 3D Scene:** Create separate components for R3F elements and group them under a `SceneComponent`.
-5.  ✅ **Create Canvas Wrapper:** Encapsulate the R3F `Canvas` setup, `SceneComponent`, and UI overlays.
-6.  ✅ **Orchestrate:** Update the main `MonteCarloVisualizer` component to import and use the new hooks and components.
-7.  ⏳ **Cleanup:** Remove the original code sections from `MonteCarloVisualizer`.
+1. ✅ **Isolate Logic:** Extract data fetching, state management, and camera control logic into custom hooks.
+2. ✅ **Isolate Utilities:** Move general helper functions to `utils.ts`.
+3. ✅ **Decompose UI:** Create separate components for distinct UI parts (Sidebar, Details Panel, Legend).
+4. ✅ **Decompose 3D Scene:** Create separate components for R3F elements and group them under a `SceneComponent`.
+5. ✅ **Create Canvas Wrapper:** Encapsulate the R3F `Canvas` setup, `SceneComponent`, and UI overlays.
+6. ✅ **Orchestrate:** Update the main `MonteCarloVisualizer` component to import and use the new hooks and components.
+7. ⏳ **Cleanup:** Remove the original code sections from `MonteCarloVisualizer`.
 
 ### Relevant Files
 
@@ -59,4 +59,4 @@ Refactoring the large `MonteCarloVisualizer.tsx` component into smaller, more ma
 - `components/monte-carlo/scene/WebGLContextLostManager.tsx` - ✅ WebGL context handling.
 - `components/monte-carlo/VisualizationCanvas.tsx` - ✅ R3F Canvas setup and UI overlays.
 - `lib/monte-carlo-service.ts` - Existing service for data operations.
-- `MONTE_CARLO_REFACTOR.md` - ✅ This task list file. 
+- `MONTE_CARLO_REFACTOR.md` - ✅ This task list file.

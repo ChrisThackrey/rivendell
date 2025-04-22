@@ -25,11 +25,14 @@ A Next.js application that visualizes AI model solutions for development tasks u
 
 1. Clone the repository
 2. Install dependencies:
+
    ```bash
    npm install
    ```
+
 3. Create a `.env` file in the root directory with your API keys:
-   ```
+
+   ```sh
    OPENAI_API_KEY=your_openai_api_key_here
    ANTHROPIC_API_KEY=your_anthropic_api_key_here
    ```
@@ -42,7 +45,7 @@ A Next.js application that visualizes AI model solutions for development tasks u
 npm run dev
 ```
 
-The application will be available at http://localhost:3000
+The application will be available at <http://localhost:3000>
 
 ### Testing
 
@@ -60,6 +63,7 @@ npm run test:coverage
 ```
 
 The test suite verifies:
+
 - Code is properly written, embedded, and stored in Supabase
 - Code files can be retrieved via Supabase client API calls
 - Code syntax is valid and parseable
