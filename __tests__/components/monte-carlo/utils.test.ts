@@ -85,15 +85,20 @@ describe('Monte Carlo Utils', () => {
 
    describe('getModelColor', () => {
       it('should return correct color for gpt-4o', () => {
-        expect(getModelColor('gpt-4o').getHexString()).toEqual(new THREE.Color("#3b82f6").getHexString());
+        expect(getModelColor('gpt-4o').getHexString()).toEqual(new THREE.Color("#93c5fd").getHexString());
       });
-       it('should return correct color for claude', () => {
-        expect(getModelColor('claude-sonnet').getHexString()).toEqual(new THREE.Color("#8b5cf6").getHexString());
+      it('should return correct color for claude', () => {
+        expect(getModelColor('claude-sonnet').getHexString()).toEqual(new THREE.Color("#c4b5fd").getHexString());
       });
-       it('should return default color for unknown models', () => {
-        expect(getModelColor('unknown-model').getHexString()).toEqual(new THREE.Color("#94a3b8").getHexString());
+      it('should return default color for unknown models', () => {
+        expect(getModelColor('unknown-model').getHexString()).toEqual(new THREE.Color("#cbd5e1").getHexString());
       });
-      // Add more tests for other models (o1, o3)
+      it('should return correct color for o1', () => {
+        expect(getModelColor('o1').getHexString()).toEqual(new THREE.Color("#86efac").getHexString());
+      });
+      it('should return correct color for o3-mini', () => {
+        expect(getModelColor('o3-mini').getHexString()).toEqual(new THREE.Color("#fcd34d").getHexString());
+      });
    });
 
     describe('getSelectionColor', () => {
