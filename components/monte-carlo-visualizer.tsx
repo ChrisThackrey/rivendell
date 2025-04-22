@@ -880,7 +880,7 @@ function Points({
         onPointerMove={handlePointerMove}
         renderOrder={2000}
       >
-        <sphereGeometry args={[0.35, 24, 24]} />
+        <sphereGeometry args={[0.15, 24, 24]} />
         <meshBasicMaterial
           transparent={true}
           alphaTest={0.01}
@@ -891,13 +891,13 @@ function Points({
 
       {/* Highlight sphere for hovered point */}
       <mesh ref={highlightRef} visible={false} renderOrder={101}>
-        <sphereGeometry args={[0.45, 32, 32]} />
+        <sphereGeometry args={[0.25, 32, 32]} />
         <meshBasicMaterial color="#f97316" transparent={true} opacity={0.6} />
       </mesh>
 
       {/* Selection sphere for selected point */}
       <mesh ref={selectionRef} visible={false} renderOrder={102}>
-        <sphereGeometry args={[0.35, 32, 32]} />
+        <sphereGeometry args={[0.15, 32, 32]} />
         <meshBasicMaterial
           color="#f97316"
           wireframe={true}
@@ -1582,8 +1582,8 @@ const Scene = React.memo(function Scene({
       <ambientLight intensity={0.5} />
       <pointLight position={[10, 10, 10]} intensity={0.8} />
 
-      <gridHelper args={[100, 100, "#cbd5e1", "#cbd5e1"]} />  // Larger grid: 100 units with 100 divisions
-      <axesHelper args={[50]} />                                  // Longer axes: 50-unit length
+      <gridHelper args={[100, 100, "#cbd5e1", "#cbd5e1"]} />  {/* Larger grid: 100 units with 100 divisions */}
+      <axesHelper args={[50]} />  {/* Longer axes: 50-unit length */}
 
       {/* Use dynamic axis labels that follow the camera */}
       <DynamicAxisLabels />
@@ -1667,6 +1667,15 @@ export default function MonteCarloVisualizer({
 }: {
   initialBatchId?: string | null;
 }) {
+  // Add isMounted ref at the top of the component
+  const isMounted = React.useRef(true)
+  React.useEffect(() => {
+    isMounted.current = true
+    return () => {
+      isMounted.current = false
+    }
+  }, [])
+
   const [data, setData] = useState<PointWithCluster[]>([]);
   const [clusters, setClusters] = useState<MonteCarloCluster[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -1690,6 +1699,12 @@ export default function MonteCarloVisualizer({
   );
   const [filteredData, setFilteredData] = useState<PointWithCluster[]>([]);
   const [isFetchingBatches, setIsFetchingBatches] = useState(false);
+  // Responsive device pixel ratio: initialized to 1 to avoid SSR window access
+  const [dpr, setDpr] = useState<number>(1);
+  useEffect(() => {
+    // Update DPR on client to match device, capped at 2
+    setDpr(Math.min(2, window.devicePixelRatio));
+  }, []);
 
   // Add state to control automatic deselection behavior - prevent deselection by default
   const [preventAutoDeselect, setPreventAutoDeselect] = useState(true);
@@ -2002,176 +2017,94 @@ export default function MonteCarloVisualizer({
     return () => clearInterval(interval);
   }, [isCameraMovingRecently, selectedPoint, selectedClusters, invalidateRef]);
 
-  // Add a separate function to fetch batch IDs directly
+  // Refactor fetchBatchIds to use isMounted ref
   const fetchBatchIds = useCallback(async () => {
-    // Create a ref to track if the component is still mounted
-    const isMounted = { current: true };
-    
-    if (DEBUG) console.debug("Fetching available batch IDs...");
-    setIsFetchingBatches(true);
-
+    if (DEBUG) console.debug("Fetching available batch IDs...")
+    setIsFetchingBatches(true)
     try {
-      // Get all available batch IDs from the database
-      const batchIds = await fetchAvailableBatchIds();
-      
-      // Check if component is still mounted
-      if (!isMounted.current) return;
-      
-      if (DEBUG) console.debug(`Fetched ${batchIds.length} batch IDs`);
-
+      const batchIds = await fetchAvailableBatchIds()
+      if (!isMounted.current) return
+      if (DEBUG) console.debug(`Fetched ${batchIds.length} batch IDs`)
       if (batchIds.length > 0) {
-        // Sort batch IDs to ensure consistent ordering
-        // Newer batches (higher timestamps) appear first
         const sortedBatchIds = [...batchIds].sort((a, b) => {
-          // Extract timestamps if available (batch_TIMESTAMP_xxx format)
           const getTimestamp = (id: string) => {
-            const match = id.match(/batch_(\d+)/);
-            return match ? parseInt(match[1]) : 0;
-          };
-
-          const timeA = getTimestamp(a);
-          const timeB = getTimestamp(b);
-
-          // Sort descending (newer first)
-          return timeB - timeA;
-        });
-
-        if (isMounted.current) {
-          setAllBatchIds(sortedBatchIds);
-        }
+            const match = id.match(/batch_(\d+)/)
+            return match ? parseInt(match[1]) : 0
+          }
+          const timeA = getTimestamp(a)
+          const timeB = getTimestamp(b)
+          return timeB - timeA
+        })
+        setAllBatchIds(sortedBatchIds)
       } else {
-        if (DEBUG) console.debug("No batch IDs found");
-        if (isMounted.current) {
-          setAllBatchIds([]);
-        }
+        if (DEBUG) console.debug("No batch IDs found")
+        setAllBatchIds([])
       }
     } catch (error) {
-      console.error("Error fetching batch IDs:", error);
-      if (isMounted.current) {
-        setAllBatchIds([]);
-      }
+      console.warn("Error fetching batch IDs:", error)
+      if (!isMounted.current) return
+      setAllBatchIds([])
     } finally {
-      if (isMounted.current) {
-        setIsFetchingBatches(false);
-      }
+      if (isMounted.current) setIsFetchingBatches(false)
     }
-    
-    // Return a cleanup function that marks the component as unmounted
-    return () => {
-      isMounted.current = false;
-    };
-  }, []);
+  }, []) // <-- removed isMounted from deps
 
-  // Add an effect to fetch batch IDs if they're not available
+  // Fetch batch IDs on component mount
   useEffect(() => {
-    // Only fetch if we don't have any batch IDs and we're not in the loading state
-    if (allBatchIds.length === 0 && !isFetchingBatches) {
-      // Call fetchBatchIds and store the cleanup function promise
-      const cleanupPromise = fetchBatchIds();
-      
-      // Return a cleanup function for this effect
-      return () => {
-        // When the promise resolves, call the cleanup function if it exists
-        cleanupPromise.then(cleanup => {
-          if (cleanup && typeof cleanup === 'function') {
-            cleanup();
-          }
-        }).catch(err => {
-          console.error("Error in fetchBatchIds cleanup:", err);
-        });
-      };
-    }
-  }, [allBatchIds.length, isFetchingBatches, fetchBatchIds]);
+    fetchBatchIds()
+  }, [fetchBatchIds])
 
-  // Handler for batch selection - use the fetch function and focus the camera
+  // Refactor handleBatchChange to use isMounted ref
   const handleBatchChange = useCallback(async (value: string) => {
-    // Create a local variable to track if the component is still mounted
-    let isMounted = true;
-    
-    // Set the selected batch and start loading
-    setSelectedBatchId(value);
-    setIsLoading(true);
-
-    // Refresh the full batch list
-    const cleanup = await fetchBatchIds();
-    
+    setSelectedBatchId(value)
+    setIsLoading(true)
+    await fetchBatchIds()
     try {
-      if (!isMounted) return;
-      
-      if (DEBUG) console.debug(`Loading data for batch ${value}...`);
-      const { dataPoints } = await fetchMonteCarloDataForBatch(value);
-      
-      if (!isMounted) return;
-
-      // STEP: If no data for this batch, clear and exit
+      if (!isMounted.current) return
+      if (DEBUG) console.debug(`Loading data for batch ${value}...`)
+      const { dataPoints } = await fetchMonteCarloDataForBatch(value)
+      if (!isMounted.current) return
       if (dataPoints.length === 0) {
-        if (DEBUG) console.debug(`No data found for batch ${value}`);
-        setData([]);
-        setFilteredData([]);
-        setClusters([]);
-        setIsLoading(false);
-        return;
+        if (DEBUG) console.debug(`No data found for batch ${value}`)
+        setData([])
+        setFilteredData([])
+        setClusters([])
+        setIsLoading(false)
+        return
       }
-
-      if (DEBUG) console.debug(`Generating clusters for ${dataPoints.length} points...`);
-      const generatedClusters = await generateClusters(dataPoints);
-      
-      if (!isMounted) return;
-
-      if (DEBUG) console.debug(`Assigning ${generatedClusters.length} clusters to data points...`);
+      if (DEBUG) console.debug(`Generating clusters for ${dataPoints.length} points...`)
+      const generatedClusters = await generateClusters(dataPoints)
+      if (!isMounted.current) return
+      if (DEBUG) console.debug(`Assigning ${generatedClusters.length} clusters to data points...`)
       const dataWithClusters: PointWithCluster[] = dataPoints.map((point) => {
         const cluster = generatedClusters.find((c) =>
           c.points.some((p) => p.id === point.id),
-        );
+        )
         return {
           ...point,
           cluster: cluster?.id,
-        };
-      });
-
-      if (!isMounted) return;
-      
-      
-      if (DEBUG) console.debug(`Generating titles for clusters...`);
-      const clustersWithTitles = await generateClusterTitles(generatedClusters);
-      
-      if (!isMounted) return;
-
-      if (DEBUG) console.debug(`Updating state with ${dataWithClusters.length} points and ${clustersWithTitles.length} clusters`);
-      setData(dataWithClusters);
-      setFilteredData(dataWithClusters);
-      setClusters(clustersWithTitles);
-
-      if (DEBUG) console.debug(`Focusing camera on points...`);
-      focusCameraOnAllPoints(dataWithClusters);
+        }
+      })
+      if (!isMounted.current) return
+      if (DEBUG) console.debug(`Generating titles for clusters...`)
+      const clustersWithTitles = await generateClusterTitles(generatedClusters)
+      if (!isMounted.current) return
+      if (DEBUG) console.debug(`Updating state with ${dataWithClusters.length} points and ${clustersWithTitles.length} clusters`)
+      setData(dataWithClusters)
+      setFilteredData(dataWithClusters)
+      setClusters(clustersWithTitles)
+      if (DEBUG) console.debug(`Focusing camera on points...`)
+      focusCameraOnAllPoints(dataWithClusters)
     } catch (error) {
-      if (!isMounted) return;
-      
-      console.error(`Error fetching data for batch ${value}:`, error);
-      setData([]);
-      setFilteredData([]);
-      setClusters([]);
+      if (!isMounted.current) return
+      console.error(`Error fetching data for batch ${value}:`, error)
+      setData([])
+      setFilteredData([])
+      setClusters([])
     } finally {
-      if (isMounted) {
-        setIsLoading(false);
-      }
-      
-      // Make sure to call the cleanup function from fetchBatchIds if it exists
-      if (cleanup && typeof cleanup === 'function') {
-        cleanup();
-      }
+      if (isMounted.current) setIsLoading(false)
     }
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [
-    fetchBatchIds,
-    fetchMonteCarloDataForBatch,
-    generateClusters,
-    generateClusterTitles,
-    focusCameraOnAllPoints,
-  ]);
+  }, [fetchBatchIds, fetchMonteCarloDataForBatch, generateClusters, generateClusterTitles, focusCameraOnAllPoints]) // isMounted ref should not be in deps
 
   // Add key press event listener for Esc key
   useEffect(() => {
@@ -2189,7 +2122,7 @@ export default function MonteCarloVisualizer({
   }, [handleDeselectAll]);
 
   // Add a new function to add jitter to point positions to prevent overlapping
-  const addJitterToPoints = (points: MonteCarloDataPoint[]): MonteCarloDataPoint[] => {
+  const addJitterToPoints = useCallback((points: MonteCarloDataPoint[]): MonteCarloDataPoint[] => {
     if (!points.length) return points;
     
     // Create a map to track positions and count occurrences
@@ -2232,122 +2165,82 @@ export default function MonteCarloVisualizer({
         position: jitteredPosition
       };
     });
-  };
+  }, []);
 
   // Load data without limiting it
   useEffect(() => {
     // Only load data if a batch ID is selected
     if (!selectedBatchId) {
       // Clear data when no batch is selected
-      setData([]);
-      setFilteredData([]);
-      setClusters([]);
-      setIsLoading(false);
-
+      setData([])
+      setFilteredData([])
+      setClusters([])
+      setIsLoading(false)
       // Still make sure we fetch all available batch IDs
-      const cleanupPromise = fetchBatchIds();
-      
-      return () => {
-        cleanupPromise.then(cleanup => {
-          if (cleanup && typeof cleanup === 'function') {
-            cleanup();
-          }
-        }).catch(err => {
-          console.error("Error in fetchBatchIds cleanup:", err);
-        });
-      };
+      fetchBatchIds()
+      return
     }
-
     // Track if the component is mounted to prevent state updates after unmounting
-    let isMounted = true;
-    // Create an array to store cleanup functions
-    const cleanupFunctions: Array<() => void> = [];
-
+    let localMounted = true // <-- renamed from isMounted
     async function loadData() {
-      if (!isMounted) return;
-      setIsLoading(true);
+      if (!localMounted) return
+      setIsLoading(true)
       try {
         // Refresh the full batch list from Supabase
-        const batchCleanup = await fetchBatchIds();
-        
-        if (batchCleanup && typeof batchCleanup === 'function') {
-          cleanupFunctions.push(batchCleanup);
-        }
-
+        await fetchBatchIds()
         // Fetch Monte Carlo data for the selected batch
-        const { dataPoints } = await fetchMonteCarloData(selectedBatchId);
-
-        if (!isMounted) return;
-
+        const { dataPoints } = await fetchMonteCarloData(selectedBatchId)
+        if (!localMounted) return
         if (dataPoints.length === 0) {
           console.log(
             `No data found for batch ${selectedBatchId}, showing empty state`
-          );
-          setIsLoading(false);
-          return;
+          )
+          setIsLoading(false)
+          return
         }
-
-        console.log(`Loaded ${dataPoints.length} points for 3D visualization`);
-        
+        console.log(`Loaded ${dataPoints.length} points for 3D visualization`)
         // First, normalize and spread points for better distribution in 3D space
-        const spreadPoints = normalizeAndSpreadPoints(dataPoints);
-        
+        const spreadPoints = normalizeAndSpreadPoints(dataPoints)
         // Then add jitter to avoid exact overlaps
-        const processedPoints = addJitterToPoints(spreadPoints);
-
+        const processedPoints = addJitterToPoints(spreadPoints)
         // Generate clusters from the processed data points
-        const generatedClusters = await generateClusters(processedPoints);
-
-        if (!isMounted) return;
-
+        const generatedClusters = await generateClusters(processedPoints)
+        if (!localMounted) return
         // Assign cluster IDs to each data point
         const dataWithClusters: PointWithCluster[] = processedPoints.map((point) => {
           // Find which cluster contains this point
           const cluster = generatedClusters.find((c) =>
             c.points.some((p) => p.id === point.id)
-          );
-
+          )
           return {
             ...point,
             cluster: cluster?.id,
-          };
-        });
-
+          }
+        })
         // Generate titles for each cluster using GPT-4o
-        const clustersWithTitles = await generateClusterTitles(generatedClusters);
-
-        if (!isMounted) return;
-        setData(dataWithClusters);
-        setFilteredData(dataWithClusters);
-        setClusters(clustersWithTitles);
-        setIsLoading(false);
-
+        const clustersWithTitles = await generateClusterTitles(generatedClusters)
+        if (!localMounted) return
+        setData(dataWithClusters)
+        setFilteredData(dataWithClusters)
+        setClusters(clustersWithTitles)
+        setIsLoading(false)
         // Focus camera on all points after loading
-        focusCameraOnAllPoints(dataWithClusters);
+        focusCameraOnAllPoints(dataWithClusters)
       } catch (error) {
-        if (!isMounted) return;
-        console.error("Error loading Monte Carlo data:", error);
-        setIsLoading(false);
-
+        if (!localMounted) return
+        console.error("Error loading Monte Carlo data:", error)
+        setIsLoading(false)
         // On error, still make sure we have all available batch IDs
-        const errorCleanup = await fetchBatchIds();
-        if (errorCleanup && typeof errorCleanup === 'function') {
-          cleanupFunctions.push(errorCleanup);
-        }
+        await fetchBatchIds()
       }
     }
-
-    loadData();
-
+    loadData()
     // Cleanup function to prevent memory leaks
     return () => {
-      isMounted = false;
-      // Execute all stored cleanup functions
-      cleanupFunctions.forEach(cleanup => cleanup());
-    };
+      localMounted = false
+    }
   }, [
     selectedBatchId,
-    focusCameraOnAllPoints,
     fetchBatchIds,
     fetchMonteCarloData,
     generateClusters,
@@ -2355,7 +2248,7 @@ export default function MonteCarloVisualizer({
     // Add the new functions to the dependency array
     normalizeAndSpreadPoints,
     addJitterToPoints
-  ]);
+  ])
 
   // Update selected closest points when selected point changes
   useEffect(() => {
@@ -2734,7 +2627,8 @@ export default function MonteCarloVisualizer({
               depth: true, 
               alpha: true 
             }}
-            dpr={Math.min(2, window.devicePixelRatio)}
+             // Use client-updated dpr state to avoid window access on server
+             dpr={dpr}
             resize={{ scroll: false }}
             onCreated={({ gl, camera, size, invalidate }) => {
               gl.setPixelRatio(window.devicePixelRatio);

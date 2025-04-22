@@ -53,7 +53,7 @@ export async function fetchAvailableBatchIds(): Promise<string[]> {
     // Call the get_available_batches RPC function
     const { data, error } = await supabase.rpc('get_available_batches');
     if (error) {
-      console.error('[MonteCarloService] RPC error fetching batch IDs:', error);
+      console.warn('[MonteCarloService] RPC error fetching batch IDs:', error);
       return [];
     }
 
@@ -65,7 +65,7 @@ export async function fetchAvailableBatchIds(): Promise<string[]> {
     );
     return batchIds;
   } catch (err) {
-    console.error('[MonteCarloService] fetchAvailableBatchIds error:', err);
+    console.warn('[MonteCarloService] fetchAvailableBatchIds error:', err);
     return [];
   }
 }
