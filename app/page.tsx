@@ -273,6 +273,38 @@ export default function Home() {
     }
   };
 
+  // Function to delete a batch and its associated data
+  const handleDeleteBatch = async () => {
+    if (!selectedBatchId) return
+    // Confirm with the user
+    if (!confirm(
+      `Are you sure you want to delete batch ${selectedBatchId} and all its data? This action cannot be undone.`
+    )) return
+
+    try {
+      setIsLoadingBatches(true)
+      const response = await fetch('/api/delete-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batchId: selectedBatchId })
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Delete failed')
+
+      toast({ title: 'Batch Deleted', description: `Batch ${selectedBatchId} has been deleted` })
+      setSelectedBatchId(null)
+
+      // Refresh the available batches
+      const batches = await getAvailableBatches()
+      setAvailableBatches(batches)
+    } catch (err: any) {
+      console.error('Error deleting batch:', err)
+      toast({ title: 'Error', description: err.message || 'Failed to delete batch' })
+    } finally {
+      setIsLoadingBatches(false)
+    }
+  };
+
   const handleGenerate = async () => {
     const finalBatchId = currentBatchId || `batch-${Date.now()}`;
 
@@ -487,6 +519,15 @@ export default function Home() {
                     className="bg-black hover:bg-gray-800"
                   >
                     View Solutions
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleDeleteBatch}
+                    disabled={!selectedBatchId}
+                    className="bg-red-500 hover:bg-red-600 text-white"
+                    title="Delete this batch and all its data"
+                  >
+                    Delete Batch
                   </Button>
                 </div>
               ) : (

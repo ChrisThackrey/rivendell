@@ -1,7 +1,14 @@
-import * as Sentry from "@sentry/nextjs";
+// Temporarily disabled Sentry import to fix instrumentation error
+// import * as Sentry from "@sentry/nextjs";
 
 /**
- * Captures an exception with Sentry and provides additional context
+ * Simple console-based error reporter (Sentry replacement)
+ * This is a temporary implementation to fix instrumentation issues
+ * TODO: Re-enable Sentry integration after fixing instrumentation issues
+ */
+
+/**
+ * Captures an exception and provides additional context
  *
  * @param error - The error to capture
  * @param context - Additional context data to include with the error
@@ -16,30 +23,18 @@ export function captureException(
       ? error
       : new Error(typeof error === "string" ? error : "Unknown error");
 
-  // Add additional context if provided
+  // Log to console
+  console.error("ERROR:", errorObject);
   if (context) {
-    // Set extra context data directly with the error
-    Object.entries(context).forEach(([key, value]) => {
-      Sentry.setExtra(key, value);
-    });
-  }
-
-  // Send the error to Sentry
-  Sentry.captureException(errorObject);
-
-  // Log to console in development
-  if (process.env.NODE_ENV !== "production") {
-    console.error("Error captured and sent to Sentry:", errorObject);
-    if (context) {
-      console.error("Additional context:", context);
-    }
+    console.error("Additional context:", context);
   }
 
   return errorObject;
 }
 
 /**
- * Sets user information for Sentry, helpful for tracking issues by user
+ * Sets user information for tracking issues by user
+ * Currently just logs to console
  *
  * @param userData - User data to associate with subsequent errors
  */
@@ -49,11 +44,14 @@ export function setUserContext(userData: {
   username?: string;
   [key: string]: unknown;
 }) {
-  Sentry.setUser(userData);
+  // When Sentry is re-enabled:
+  // Sentry.setUser(userData);
+  console.log("User context set (Sentry disabled):", userData);
 }
 
 /**
  * Manually records a breadcrumb which will be attached to future errors
+ * Currently just logs to console
  *
  * @param breadcrumb - The breadcrumb data to record
  */
@@ -64,11 +62,13 @@ export function addBreadcrumb(breadcrumb: {
   data?: Record<string, unknown>;
   level?: "fatal" | "error" | "warning" | "info" | "debug";
 }) {
-  Sentry.addBreadcrumb(breadcrumb);
+  // When Sentry is re-enabled:
+  // Sentry.addBreadcrumb(breadcrumb);
+  console.log("Breadcrumb added (Sentry disabled):", breadcrumb);
 }
 
 /**
- * Wraps an async function with Sentry error reporting
+ * Wraps an async function with error reporting
  *
  * @param fn - The async function to wrap
  * @returns The wrapped function with error reporting

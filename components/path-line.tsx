@@ -34,12 +34,15 @@ export default function PathLine({
   const [translateY, setTranslateY] = useState(
     translateYOverride !== undefined ? translateYOverride : -216,
   );
+  const [elementsMissing, setElementsMissing] = useState(false);
   const pathRef = useRef("");
   const animationFrameRef = useRef<number | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const periodicUpdateRef = useRef<NodeJS.Timeout | null>(null);
   const observersRef = useRef<MutationObserver[]>([]);
   const linesContainerRef = useRef<HTMLDivElement>(null);
+  const retryAttemptsRef = useRef(0);
+  const maxRetries = 10; // Maximum number of retries
 
   // Helper function to ensure connection points exist
   const ensureConnectionPoints = () => {
@@ -50,11 +53,24 @@ export default function PathLine({
     const toElement = document.getElementById(toId);
 
     if (!fromElement || !toElement) {
+      // Elements are missing, but don't warn if we're still within retry attempts
+      if (retryAttemptsRef.current < maxRetries) {
+        console.log(
+          `Elements not found yet, will retry: fromId=${fromId}, toId=${toId} (attempt ${retryAttemptsRef.current + 1}/${maxRetries})`,
+        );
+        setElementsMissing(true);
+        return false;
+      }
+      
       console.warn(
         `Cannot create connection points - missing elements: fromId=${fromId} (${!!fromElement}), toId=${toId} (${!!toElement})`,
       );
+      setElementsMissing(true);
       return false;
     }
+
+    // Reset the missing flag if elements are found
+    setElementsMissing(false);
 
     // We still set step index for debugging purposes, but it won't affect translation
     if (!fromElement.hasAttribute("data-step-index")) {
@@ -467,8 +483,78 @@ export default function PathLine({
       document.removeEventListener("pathway-dom-change", forceRecalculation);
     };
 
+    // Add a function to clean up connection points from the DOM
+    const cleanupConnectionPoints = () => {
+      // Clean up connection points to prevent DOM pollution
+      if (typeof document !== "undefined" && typeof window !== "undefined" && typeof window.CSS !== "undefined" && typeof window.CSS.escape === "function") {
+        const pointSelectors = [
+          `#${window.CSS.escape(fromId)}-top`,
+          `#${window.CSS.escape(fromId)}-bottom`,
+          `#${window.CSS.escape(toId)}-top`,
+          `#${window.CSS.escape(toId)}-bottom`,
+          `#${window.CSS.escape(fromId)}-top-marker`,
+          `#${window.CSS.escape(fromId)}-bottom-marker`,
+          `#${window.CSS.escape(toId)}-top-marker`,
+          `#${window.CSS.escape(toId)}-bottom-marker`
+        ];
+        pointSelectors.forEach(selector => {
+          const element = document.querySelector(selector);
+          if (element && element.parentNode) {
+            element.parentNode.removeChild(element);
+          }
+        });
+      }
+    };
+
     // Initial cleanup
     cleanup();
+
+    // Function to try creating connection points with retry logic
+    const setupConnectionWithRetry = () => {
+      // Reset retry counter
+      retryAttemptsRef.current = 0;
+      
+      // Initial attempt
+      if (ensureConnectionPoints()) {
+        // Success - calculate path
+        calculatePath();
+        calculateTranslateY();
+        
+        // Force a second calculation after a short delay
+        setTimeout(() => {
+          forceRecalculation();
+        }, 300);
+      } else {
+        // Failed - set up retry mechanism
+        const attemptRetry = () => {
+          retryAttemptsRef.current++;
+          
+          if (retryAttemptsRef.current <= maxRetries) {
+            console.log(`Retry attempt ${retryAttemptsRef.current}/${maxRetries} for path ${fromId} -> ${toId}`);
+            
+            // Exponential backoff: wait longer between attempts
+            const retryDelay = Math.min(100 * Math.pow(1.5, retryAttemptsRef.current), 2000);
+            
+            setTimeout(() => {
+              if (ensureConnectionPoints()) {
+                // Success!
+                calculatePath();
+                calculateTranslateY();
+                setTimeout(forceRecalculation, 100);
+              } else {
+                // Still not found, try again
+                attemptRetry();
+              }
+            }, retryDelay);
+          } else {
+            console.warn(`Max retries (${maxRetries}) exceeded for ${fromId} -> ${toId}`);
+          }
+        };
+        
+        // Start retry process
+        attemptRetry();
+      }
+    };
 
     // Calculate appropriate translation value based on step index
     const calculateTranslateY = () => {
@@ -529,33 +615,10 @@ export default function PathLine({
       setTranslateY(yTranslation);
     };
 
-    // Calculate translation value immediately
-    calculateTranslateY();
-
-    // Initial calculation with delay to ensure DOM is ready
+    // Start the connection setup with retry logic
     setTimeout(() => {
-      // Make sure the connection points exist before calculating
-      if (ensureConnectionPoints()) {
-        // Calculate the path with a short delay to allow connection points to be positioned
-        setTimeout(() => {
-          calculatePath();
-          calculateTranslateY(); // Also recalculate the translation
-
-          // Force a second calculation after a longer delay to ensure proper positioning
-          setTimeout(() => {
-            forceRecalculation();
-            calculateTranslateY(); // Recalculate after layout adjustments
-          }, 300);
-        }, 50);
-      } else {
-        // If connection points couldn't be created, try again after a delay
-        setTimeout(() => {
-          ensureConnectionPoints();
-          calculatePath();
-          calculateTranslateY(); // Try again with the translation
-        }, 200);
-      }
-    }, 100);
+      setupConnectionWithRetry();
+    }, delay * 1000 + 100); // Add the animation delay to our timing
 
     // Get the elements
     const fromElement = document.getElementById(fromId);
@@ -690,6 +753,9 @@ export default function PathLine({
       // Return cleanup function
       return () => {
         cleanup();
+        
+        // Also clean up connection points on unmount
+        cleanupConnectionPoints();
 
         // Remove scroll listeners from parents
         uniqueScrollableParents.forEach((parent) => {
@@ -727,6 +793,9 @@ export default function PathLine({
     }
   }, [translateYOverride]);
 
+  // Skip rendering if elements are missing after all retries
+  if (elementsMissing && retryAttemptsRef.current >= maxRetries) return null;
+  
   // Skip rendering if path is not calculated yet
   if (!path) return null;
 

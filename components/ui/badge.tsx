@@ -25,6 +25,14 @@ const badgeVariants = cva(
   },
 );
 
+/**
+ * Renders a badge component with customizable variants and optional child rendering.
+ * 
+ * @param {Object} props - The badge component properties
+ * @param {string} [props.className] - Additional CSS classes to apply to the badge
+ * @param {string} [props.variant='default'] - The visual style variant of the badge
+ * @param {boolean} [props.asChild=false] - Whether to render the badge as a child component
+ */
 function Badge({
   className,
   variant,

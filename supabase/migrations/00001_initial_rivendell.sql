@@ -173,6 +173,23 @@ COMMENT ON COLUMN ensembles.configuration IS 'JSON structure containing the comp
 COMMENT ON COLUMN ensembles.created_at IS 'When the ensemble configuration was created';
 COMMENT ON COLUMN ensembles.updated_at IS 'When the ensemble configuration was last updated';
 
+-- Trigger to auto-update ensemble updated_at on record update
+CREATE OR REPLACE FUNCTION update_ensembles_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Drop existing trigger if exists to avoid 'trigger already exists' error
+DROP TRIGGER IF EXISTS update_ensembles_timestamp ON ensembles;
+
+CREATE TRIGGER update_ensembles_timestamp
+BEFORE UPDATE ON ensembles
+FOR EACH ROW
+EXECUTE FUNCTION update_ensembles_updated_at();
+
 -- Create configurations table (from create_configurations_table.sql)
 CREATE TABLE IF NOT EXISTS configurations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -189,10 +206,24 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-CREATE TRIGGER update_configurations_timestamp
-BEFORE UPDATE ON configurations
-FOR EACH ROW
-EXECUTE FUNCTION trigger_update_timestamp();
+
+-- Drop existing trigger if it exists to avoid 'trigger already exists' error
+DROP TRIGGER IF EXISTS update_configurations_timestamp ON configurations;
+
+-- Only create the trigger if it doesn't already exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgname = 'update_configurations_timestamp'
+      AND tgrelid = 'configurations'::regclass
+  ) THEN
+    CREATE TRIGGER update_configurations_timestamp
+    BEFORE UPDATE ON configurations
+    FOR EACH ROW EXECUTE FUNCTION trigger_update_timestamp();
+  END IF;
+END;
+$$;
 
 -- Create steps table (from create_steps_table.sql)
 CREATE TABLE IF NOT EXISTS steps (
@@ -245,37 +276,6 @@ BEGIN
   ORDER BY steps.level, steps.step_index, steps.created_at DESC;
 END;
 $$;
-
--- Create a view to help debug the codeFiles content
-CREATE OR REPLACE VIEW debug_code_files AS
-SELECT
-  id,
-  batch_id,
-  metadata->>'runId' as run_id,
-  metadata->>'stepNumber' as step_number,
-  metadata->>'stepTitle' as step_title,
-  metadata->'codeFiles' as code_files,
-  jsonb_array_length(COALESCE(metadata->'codeFiles', '[]'::jsonb)) as code_files_count,
-  -- Extract filenames from the codeFiles array
-  (SELECT jsonb_agg(cf->>'filename')
-   FROM jsonb_array_elements(COALESCE(metadata->'codeFiles', '[]'::jsonb)) as cf) as filenames,
-  -- Check if code fields exist and are populated
-  (SELECT jsonb_agg(
-     jsonb_build_object(
-       'filename', cf->>'filename',
-       'has_code', (cf->>'code') IS NOT NULL,
-       'code_length', length(cf->>'code')
-     )
-   )
-   FROM jsonb_array_elements(COALESCE(metadata->'codeFiles', '[]'::jsonb)) as cf) as code_details,
-  created_at
-FROM
-  documents
-WHERE
-  metadata->'codeFiles' IS NOT NULL AND
-  metadata->>'stepNumber' IS NOT NULL
-ORDER BY
-  created_at DESC;
 
 -- Add codefiles table to separate code snippets from documents
 CREATE TABLE IF NOT EXISTS codefiles (
@@ -983,6 +983,7 @@ END;
 $$;
 
 -- Create a view to help diagnose document-codefile relationship issues
+DROP VIEW IF EXISTS document_codefile_relationships;
 CREATE OR REPLACE VIEW document_codefile_relationships AS
 SELECT
   d.id AS document_id,
@@ -1155,3 +1156,25 @@ $$;
 
 -- Add comment for documentation
 COMMENT ON FUNCTION find_documents_with_code IS 'Function to find documents with code content by search term without using vector embeddings';
+
+-- Compatibility functions for PostgREST `list_extensions`
+CREATE OR REPLACE FUNCTION public.list_extensions()
+RETURNS TABLE(extname TEXT)
+LANGUAGE sql
+AS $$
+  SELECT extname FROM pg_extension;
+$$;
+
+CREATE OR REPLACE FUNCTION public.list_extensions(input json)
+RETURNS TABLE(extname TEXT)
+LANGUAGE sql
+AS $$
+  SELECT extname FROM pg_extension;
+$$;
+
+CREATE OR REPLACE FUNCTION public.list_extensions(input jsonb)
+RETURNS TABLE(extname TEXT)
+LANGUAGE sql
+AS $$
+  SELECT extname FROM pg_extension;
+$$;

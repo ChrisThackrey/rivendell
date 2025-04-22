@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, HomeIcon, PanelsTopLeft } from "lucide-react";
+import { Box, HomeIcon, PanelsTopLeft, WrenchIcon } from "lucide-react";
 import { TabsComponent, type TabItem } from "./navigation-tabs";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";

@@ -30,6 +30,7 @@ import type {
   ScoreMetrics,
 } from "@/lib/supabase-client";
 import LinesContainer from "@/components/lines-container";
+import PathLine from "@/components/path-line";
 
 type Metric = {
   executionTime: string;
@@ -3568,7 +3569,36 @@ export default function PathwayVisualizer({
     }
   };
 
-  // Generate connection lines between cards with the same runId - currently unused but kept for future implementation
+  // Add this utility function for validating IDs
+  const isValidId = (id: string | null | undefined): boolean => {
+    if (!id) return false;
+    // Basic check for UUID format
+    return id.length > 8 && id.includes('-');
+  };
+
+  // Modify the validateConnection function to check for valid IDs first
+  const validateConnection = (fromId: string, toId: string): boolean => {
+    // First check if IDs are valid
+    if (!isValidId(fromId) || !isValidId(toId)) {
+      console.log(`Skipping invalid connection: Invalid ID format - fromId=${fromId}, toId=${toId}`);
+      return false;
+    }
+    
+    if (typeof window === "undefined" || typeof document === "undefined") return false;
+    
+    // Check if both elements exist in the DOM
+    const fromElement = document.getElementById(fromId);
+    const toElement = document.getElementById(toId);
+    
+    if (!fromElement || !toElement) {
+      // Log the issue but don't throw a visible error
+      console.log(`Skipping invalid connection: ${fromId} -> ${toId} (elements don't exist in DOM)`);
+      return false;
+    }
+    
+    return true;
+  };
+
   const generateConnectionLinesFromGroupedSteps = (): (Connection & {
     color: string;
   })[] => {
@@ -3615,7 +3645,26 @@ export default function PathwayVisualizer({
       });
     }
 
-    return connections;
+    // First filter to ensure we only have valid connection IDs
+    const connectionsWithValidIds = connections.filter(
+      (conn) => isValidId(conn.from) && isValidId(conn.to)
+    );
+    
+    if (connectionsWithValidIds.length < connections.length) {
+      console.log(`Filtered out ${connections.length - connectionsWithValidIds.length} connections with invalid IDs`);
+    }
+    
+    // Then filter connections that might have valid IDs but don't exist in DOM
+    const validConnections = connectionsWithValidIds.filter(conn => 
+      validateConnection(conn.from, conn.to)
+    );
+    
+    // Log if connections were filtered out
+    if (validConnections.length < connectionsWithValidIds.length) {
+      console.log(`Filtered out ${connectionsWithValidIds.length - validConnections.length} connections with valid IDs but missing DOM elements`);
+    }
+    
+    return validConnections;
   };
 
   // Display loading state with progress timeline and Ensemble Config Card
@@ -4142,6 +4191,25 @@ export default function PathwayVisualizer({
               </Button>
             </div>
           )}
+        </div>
+      )}
+
+      {showConnections && (
+        <div className="connection-lines-container">
+          {generateConnectionLinesFromGroupedSteps().map((connection, i) => (
+            validateConnection(connection.from, connection.to) && (
+              <PathLine
+                key={`${connection.from}-${connection.to}`}
+                fromId={connection.from}
+                toId={connection.to}
+                type={connection.type}
+                delay={0.1 + i * 0.05}
+                isHighlighted={isConnectionHighlighted(connection.from, connection.to)}
+                color={connection.color}
+                onHover={handleLineHover}
+              />
+            )
+          ))}
         </div>
       )}
     </LinesContainer>

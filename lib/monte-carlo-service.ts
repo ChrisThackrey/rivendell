@@ -21,8 +21,8 @@ export type MonteCarloDataPoint = {
   };
   approach: string;
   solutionSummary: string;
-  originalContent?: string;
-  batchId?: string | null;
+  originalContent: string;
+  batchId: string | null;
   cluster?: number;
 };
 
@@ -36,58 +36,36 @@ export type MonteCarloCluster = {
   isSelected: boolean;
 };
 
-// Add a type for the RPC result
 // Type for available batches returned by RPC
-type AvailableBatchRow = {
+interface AvailableBatchRow {
   batch_id: string;
   step_count: number;
   latest_created_at: string;
-};
+}
 
 /**
- * Fetch available batch IDs from the database
+ * Fetch available batch IDs from the database via RPC
  */
 export async function fetchAvailableBatchIds(): Promise<string[]> {
   try {
-    console.info("[MonteCarloService] Fetching available batch IDs...");
+    console.info("[MonteCarloService] Fetching available batch IDs via RPC");
 
-    // Fetch batch_id and created_at fields for all documents (limit for pagination safety)
-    const { data: rawRows, error } = await supabase
-      .from("documents")
-      .select("batch_id, created_at")
-      .not("batch_id", "is", null)
-      .order("created_at", { ascending: false })
-      .limit(1000);
-
+    // Call the get_available_batches RPC function
+    const { data, error } = await supabase.rpc('get_available_batches');
     if (error) {
-      console.error("[MonteCarloService] Error fetching batch IDs:", error);
+      console.error('[MonteCarloService] RPC error fetching batch IDs:', error);
       return [];
     }
 
-    // Cast rows to known type
-    const rows = (rawRows as Array<{ batch_id: string | null; created_at: string }>) || [];
-    if (rows.length === 0) {
-      console.warn("[MonteCarloService] No batch entries returned");
-      return [];
-    }
-
-    // Extract and dedupe batch IDs in order of created_at
-    const seen = new Set<string>();
-    const batchIds: string[] = [];
-    rows.forEach((row) => {
-      const id = row.batch_id;
-      if (id && !seen.has(id)) {
-        seen.add(id);
-        batchIds.push(id);
-      }
-    });
-
+    // Map RPC result to an array of batch IDs
+    const batchRows = (data as AvailableBatchRow[]) || [];
+    const batchIds = batchRows.map((row) => row.batch_id);
     console.info(
-      `[MonteCarloService] Retrieved ${batchIds.length} distinct batch IDs`,
+      `[MonteCarloService] Retrieved ${batchIds.length} batch IDs via RPC`,
     );
     return batchIds;
   } catch (err) {
-    console.error("[MonteCarloService] fetchAvailableBatchIds error:", err);
+    console.error('[MonteCarloService] fetchAvailableBatchIds error:', err);
     return [];
   }
 }
@@ -132,10 +110,9 @@ export async function fetchMonteCarloData(
       query = query.eq("batch_id", batchId);
     }
 
-    // Execute the query
+    // Execute the query - removed range limit to fetch ALL points
     let { data } = await query
-      .order("created_at", { ascending: false })
-      .range(0, 10000);
+      .order("created_at", { ascending: false });
 
     // Error handling moved to try/catch block
 
@@ -145,7 +122,7 @@ export async function fetchMonteCarloData(
         `[MonteCarloService] No direct documents for batch ${batchId}, falling back to step documents`,
       );
 
-      // Try to get step documents for this batch
+      // Try to get step documents for this batch - no limit
       const { data: stepData, error: stepError } = await supabase
         .from("documents")
         .select("id, content, metadata, batch_id")
@@ -190,11 +167,8 @@ export async function fetchMonteCarloData(
       ),
     ).sort();
 
-    // Log related batch IDs count
-    // console.info(`[MonteCarloService] Found ${batchIds.length} unique batch IDs in fetched data${batchId ? ` for batch ${batchId}` : ''}`);
-
     // Process the data into our format
-    const dataPoints = data.map((document, index) => {
+    let dataPoints = data.map((document, index) => {
       const metadata = document.metadata as DocumentMetadata;
 
       // Extract metrics and approach data
@@ -262,11 +236,120 @@ export async function fetchMonteCarloData(
       };
     });
 
+    // Add post-processing to space out points and avoid overlaps
+    dataPoints = normalizeAndSpreadPositions(dataPoints);
+    dataPoints = addJitterToOverlappingPoints(dataPoints);
+
     return { dataPoints, batchIds };
   } catch (error) {
     console.error("Error in fetchMonteCarloData:", error);
     return { dataPoints: generateMockMonteCarloData(), batchIds: [] };
   }
+}
+
+/**
+ * Normalize and spread out points to use the full 3D space
+ */
+function normalizeAndSpreadPositions(points: MonteCarloDataPoint[]): MonteCarloDataPoint[] {
+  if (points.length <= 1) return points;
+  
+  // First pass: find the min and max values for each dimension
+  let minX = Infinity, maxX = -Infinity;
+  let minY = Infinity, maxY = -Infinity;
+  let minZ = Infinity, maxZ = -Infinity;
+  
+  points.forEach(point => {
+    minX = Math.min(minX, point.position[0]);
+    maxX = Math.max(maxX, point.position[0]);
+    minY = Math.min(minY, point.position[1]);
+    maxY = Math.max(maxY, point.position[1]);
+    minZ = Math.min(minZ, point.position[2]);
+    maxZ = Math.max(maxZ, point.position[2]);
+  });
+  
+  // Calculate ranges for each dimension
+  const rangeX = maxX - minX || 1; // Avoid division by zero
+  const rangeY = maxY - minY || 1;
+  const rangeZ = maxZ - minZ || 1;
+  
+  // Desired spread in each dimension
+  const targetSpread = 16; // Larger value creates more space between points
+  
+  // Apply normalization and scaling to spread points out
+  return points.map(point => {
+    // Normalize each dimension to [0,1] range then scale to desired spread
+    // and re-center around origin
+    const normalizedPosition: [number, number, number] = [
+      ((point.position[0] - minX) / rangeX) * targetSpread - (targetSpread / 2),
+      ((point.position[1] - minY) / rangeY) * targetSpread - (targetSpread / 2),
+      ((point.position[2] - minZ) / rangeZ) * targetSpread - (targetSpread / 2)
+    ];
+    
+    return {
+      ...point,
+      position: normalizedPosition
+    };
+  });
+}
+
+/**
+ * Add jitter to points that would otherwise overlap
+ */
+function addJitterToOverlappingPoints(points: MonteCarloDataPoint[]): MonteCarloDataPoint[] {
+  if (points.length <= 1) return points;
+  
+  // Create a map to track positions and count occurrences
+  const positionMap = new Map<string, number>();
+  
+  // First pass: count occurrences of each position
+  points.forEach(point => {
+    // Create a position key with reduced precision to catch near-overlaps
+    const posKey = [
+      Math.round(point.position[0] * 10) / 10,
+      Math.round(point.position[1] * 10) / 10,
+      Math.round(point.position[2] * 10) / 10
+    ].join(',');
+    
+    positionMap.set(posKey, (positionMap.get(posKey) || 0) + 1);
+  });
+  
+  // Define jitter amount based on number of overlapping points
+  const getJitterAmount = (count: number) => {
+    if (count <= 1) return 0; // No jitter needed
+    // More points = more jitter
+    const baseJitter = 0.2;
+    return Math.min(baseJitter * Math.sqrt(count), 0.8);
+  };
+  
+  // Apply jitter to points that share positions
+  return points.map(point => {
+    // Create a position key with reduced precision
+    const posKey = [
+      Math.round(point.position[0] * 10) / 10,
+      Math.round(point.position[1] * 10) / 10,
+      Math.round(point.position[2] * 10) / 10
+    ].join(',');
+    
+    const count = positionMap.get(posKey) || 0;
+    
+    // No need to add jitter for unique positions
+    if (count <= 1) {
+      return point;
+    }
+    
+    // Apply jitter in all three dimensions
+    const jitterAmount = getJitterAmount(count);
+    const jitteredPosition: [number, number, number] = [
+      point.position[0] + (Math.random() * 2 - 1) * jitterAmount,
+      point.position[1] + (Math.random() * 2 - 1) * jitterAmount,
+      point.position[2] + (Math.random() * 2 - 1) * jitterAmount
+    ];
+    
+    return {
+      ...point,
+      position: jitteredPosition
+    };
+  });
 }
 
 /**

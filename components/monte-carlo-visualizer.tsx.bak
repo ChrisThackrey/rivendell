@@ -2047,9 +2047,6 @@ export default function MonteCarloVisualizer({
       }
     } catch (error) {
       console.error("Error fetching batch IDs:", error);
-      if (isMounted.current) {
-        setAllBatchIds([]);
-      }
     } finally {
       if (isMounted.current) {
         setIsFetchingBatches(false);
@@ -2066,20 +2063,7 @@ export default function MonteCarloVisualizer({
   useEffect(() => {
     // Only fetch if we don't have any batch IDs and we're not in the loading state
     if (allBatchIds.length === 0 && !isFetchingBatches) {
-      // Call fetchBatchIds and store the cleanup function promise
-      const cleanupPromise = fetchBatchIds();
-      
-      // Return a cleanup function for this effect
-      return () => {
-        // When the promise resolves, call the cleanup function if it exists
-        cleanupPromise.then(cleanup => {
-          if (cleanup && typeof cleanup === 'function') {
-            cleanup();
-          }
-        }).catch(err => {
-          console.error("Error in fetchBatchIds cleanup:", err);
-        });
-      };
+      fetchBatchIds();
     }
   }, [allBatchIds.length, isFetchingBatches, fetchBatchIds]);
 
@@ -2188,6 +2172,98 @@ export default function MonteCarloVisualizer({
     };
   }, [handleDeselectAll]);
 
+  // Add an effect to fetch batch IDs if they're not available
+  useEffect(() => {
+    // Only fetch if we don't have any batch IDs and we're not in the loading state
+    if (allBatchIds.length === 0 && !isFetchingBatches) {
+      fetchBatchIds();
+    }
+  }, [allBatchIds.length, isFetchingBatches, fetchBatchIds]);
+
+  // Add an effect to fetch batch IDs if they're not available
+  useEffect(() => {
+    // Only fetch if we don't have any batch IDs and we're not in the loading state
+    if (allBatchIds.length === 0 && !isFetchingBatches) {
+      const cleanupPromise = fetchBatchIds();
+      
+      // Handle the cleanup function properly
+      return () => {
+        // When the promise resolves, call the cleanup function if it exists
+        cleanupPromise.then(cleanup => {
+          if (cleanup && typeof cleanup === 'function') {
+            cleanup();
+          }
+        }).catch(err => {
+          // Handle any errors from fetchBatchIds
+          console.error("Error in fetchBatchIds cleanup:", err);
+        });
+      };
+    }
+  }, [allBatchIds.length, isFetchingBatches, fetchBatchIds]);
+
+  // Add an effect to fetch batch IDs if they're not available
+  useEffect(() => {
+    // Only fetch if we don't have any batch IDs and we're not in the loading state
+    if (allBatchIds.length === 0 && !isFetchingBatches) {
+      const cleanupPromise = fetchBatchIds();
+      
+      // Handle the cleanup function properly
+      return () => {
+        // When the promise resolves, call the cleanup function if it exists
+        cleanupPromise.then(cleanup => {
+          if (cleanup && typeof cleanup === 'function') {
+            cleanup();
+          }
+        }).catch(err => {
+          // Handle any errors from fetchBatchIds
+          console.error("Error in fetchBatchIds cleanup:", err);
+        });
+      };
+    }
+  }, [allBatchIds.length, isFetchingBatches, fetchBatchIds]);
+
+  // Add an effect to fetch batch IDs if they're not available
+  useEffect(() => {
+    // Only fetch if we don't have any batch IDs and we're not in the loading state
+    if (allBatchIds.length === 0 && !isFetchingBatches) {
+      const cleanupPromise = fetchBatchIds();
+      
+      // Handle the cleanup function properly
+      return () => {
+        // When the promise resolves, call the cleanup function if it exists
+        cleanupPromise.then(cleanup => {
+          if (cleanup && typeof cleanup === 'function') {
+            cleanup();
+          }
+        }).catch(err => {
+          // Handle any errors from fetchBatchIds
+          console.error("Error in fetchBatchIds cleanup:", err);
+        });
+      };
+    }
+  }, [allBatchIds.length, isFetchingBatches, fetchBatchIds]);
+
+  // Add an effect to fetch batch IDs if they're not available
+  useEffect(() => {
+    // Only fetch if we don't have any batch IDs and we're not in the loading state
+    if (allBatchIds.length === 0 && !isFetchingBatches) {
+      // Call fetchBatchIds and store the cleanup function promise
+      const cleanupPromise = fetchBatchIds();
+      
+      // Return a cleanup function for this effect
+      return () => {
+        // When the promise resolves, call the cleanup function if it exists
+        cleanupPromise.then(cleanup => {
+          if (cleanup && typeof cleanup === 'function') {
+            cleanup();
+          }
+        }).catch(err => {
+          console.error("Error in fetchBatchIds cleanup:", err);
+        });
+      };
+    }
+  }, [allBatchIds.length, isFetchingBatches, fetchBatchIds]);
+
   // Add a new function to add jitter to point positions to prevent overlapping
   const addJitterToPoints = (points: MonteCarloDataPoint[]): MonteCarloDataPoint[] => {
     if (!points.length) return points;
@@ -2245,34 +2321,19 @@ export default function MonteCarloVisualizer({
       setIsLoading(false);
 
       // Still make sure we fetch all available batch IDs
-      const cleanupPromise = fetchBatchIds();
-      
-      return () => {
-        cleanupPromise.then(cleanup => {
-          if (cleanup && typeof cleanup === 'function') {
-            cleanup();
-          }
-        }).catch(err => {
-          console.error("Error in fetchBatchIds cleanup:", err);
-        });
-      };
+      fetchBatchIds();
+      return;
     }
 
     // Track if the component is mounted to prevent state updates after unmounting
     let isMounted = true;
-    // Create an array to store cleanup functions
-    const cleanupFunctions: Array<() => void> = [];
 
     async function loadData() {
       if (!isMounted) return;
       setIsLoading(true);
       try {
         // Refresh the full batch list from Supabase
-        const batchCleanup = await fetchBatchIds();
-        
-        if (batchCleanup && typeof batchCleanup === 'function') {
-          cleanupFunctions.push(batchCleanup);
-        }
+        await fetchBatchIds();
 
         // Fetch Monte Carlo data for the selected batch
         const { dataPoints } = await fetchMonteCarloData(selectedBatchId);
@@ -2330,10 +2391,7 @@ export default function MonteCarloVisualizer({
         setIsLoading(false);
 
         // On error, still make sure we have all available batch IDs
-        const errorCleanup = await fetchBatchIds();
-        if (errorCleanup && typeof errorCleanup === 'function') {
-          cleanupFunctions.push(errorCleanup);
-        }
+        fetchBatchIds();
       }
     }
 
@@ -2342,8 +2400,6 @@ export default function MonteCarloVisualizer({
     // Cleanup function to prevent memory leaks
     return () => {
       isMounted = false;
-      // Execute all stored cleanup functions
-      cleanupFunctions.forEach(cleanup => cleanup());
     };
   }, [
     selectedBatchId,

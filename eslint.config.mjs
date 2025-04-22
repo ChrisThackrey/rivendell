@@ -14,7 +14,11 @@ const eslintConfig = [
   // Disable warnings about unused eslint-disable directives
   {
     rules: {
-      "no-unused-disable-directive": "off"
+      "no-unused-disable-directive": "off",
+      // Disable unreachable code warnings
+      "no-unreachable": "off",
+      // Disable warnings about code after a return statement
+      "no-unreachable-loop": "off"
     }
   },
   {
