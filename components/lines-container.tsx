@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, ReactNode, ReactElement } from "react";
 
 interface LinesContainerProps {
   children: React.ReactNode;
@@ -85,19 +85,41 @@ export default function LinesContainer({
     };
   }, []);
 
+  // Split children into connection lines container and other content
+  const childrenArray = React.Children.toArray(children)
+  // Find the element with className "connection-lines-container"
+  const connectionContainerElement = childrenArray.find(
+    (child): child is ReactElement<{ className?: string; children?: ReactNode }> => {
+      // Ensure the child is a valid React element
+      if (!React.isValidElement(child)) return false
+      // Cast to ReactElement with expected props
+      const el = child as ReactElement<{ className?: string; children?: ReactNode }>
+      return el.props.className === "connection-lines-container"
+    }
+  )
+  // Extract its children (path lines) if found
+  const connectionLineChildren = connectionContainerElement
+    ? connectionContainerElement.props.children
+    : null
+  // Exclude the connection container from other children
+  const otherChildren = childrenArray.filter(
+    (child) => child !== connectionContainerElement
+  )
   return (
     <div
       ref={containerRef}
       className={`relative overflow-visible ${className}`}
       style={{ position: "relative" }}
     >
-      {/* Container for lines */}
+      {/* Render extracted path lines inside the dedicated lines-container */}
       <div className="lines-container absolute top-0 left-0 w-full h-full pointer-events-none z-0 overflow-visible">
-        {/* Path lines will be rendered here by PathLine component */}
+        {connectionLineChildren}
       </div>
 
-      {/* Main content */}
-      <div className="solution-grid relative z-10">{children}</div>
+      {/* Main content without path lines */}
+      <div className="solution-grid relative z-10">
+        {otherChildren}
+      </div>
     </div>
   );
 }

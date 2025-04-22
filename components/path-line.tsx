@@ -300,11 +300,8 @@ export default function PathLine({
       const toX = toRect.left - containerRect.left + toRect.width / 2;
       const toY = toRect.top - containerRect.top;
 
-      // Apply any adjustments needed
-      const adjustedFromY = fromY;
-      const adjustedToY = toY;
-
-      return calculatePathFromPoints(fromX, adjustedFromY, toX, adjustedToY);
+      // No adjustments needed anymore
+      return calculatePathFromPoints(fromX, fromY, toX, toY);
     }
 
     // Get the explicit connection points' positions
@@ -322,6 +319,8 @@ export default function PathLine({
     const toX = toRect.left - containerRect.left + toRect.width / 2;
     const toY = toRect.top - containerRect.top + toRect.height / 2;
 
+    console.log(`Path from (${fromX}, ${fromY}) to (${toX}, ${toY})`);
+
     return calculatePathFromPoints(fromX, fromY, toX, toY);
   };
 
@@ -332,45 +331,61 @@ export default function PathLine({
     toX: number,
     toY: number,
   ) => {
-    // Calculate midpoint for the curve
+    // Calculate the vertical distance between points to determine path style
+    const verticalDistance = Math.abs(toY - fromY);
+    const horizontalDistance = Math.abs(toX - fromX);
+    
+    // Corner radius for smooth curves - adjust based on distances
+    const cornerRadius = Math.min(20, verticalDistance / 4, horizontalDistance / 4);
+
+    // Calculate midpoint for the curve - adjusting for better appearance
     const midY = fromY + (toY - fromY) / 2;
 
-    // Corner radius for smooth curves
-    const cornerRadius = 20;
-
-    // Calculate SVG container position and dimensions (standard positioning)
-    const minX = Math.min(fromX, toX) - 50;
+    // Calculate SVG container position and dimensions with extra padding
+    const minX = Math.min(fromX, toX) - 100; // More padding on sides
     const minY = Math.min(fromY, toY) - 50;
-    const maxX = Math.max(fromX, toX) + 50;
-    const maxY = Math.max(fromY, toY) + 20;
+    const maxX = Math.max(fromX, toX) + 100; // More padding on sides
+    const maxY = Math.max(fromY, toY) + 50;
 
-    const svgWidth = maxX - minX + 100;
-    const svgHeight = maxY - minY + 70;
+    const svgWidth = maxX - minX + 200;  // Increased width
+    const svgHeight = maxY - minY + 100; // Increased height
 
-    // Update SVG container position
+    // Update SVG container position with extra space
     setSvgPosition({
-      left: minX - 50,
+      left: minX - 100,
       top: minY - 50,
       width: svgWidth,
       height: svgHeight,
     });
 
     // Create path data relative to the SVG container
-    const relFromX = fromX - (minX - 50);
+    const relFromX = fromX - (minX - 100);
     const relFromY = fromY - (minY - 50);
-    const relToX = toX - (minX - 50);
+    const relToX = toX - (minX - 100);
     const relToY = toY - (minY - 50);
     const relMidY = midY - (minY - 50);
 
     // Start path at the from point
     let pathData = `M ${relFromX} ${relFromY}`;
 
-    // If the cards are roughly aligned vertically
-    if (Math.abs(relFromX - relToX) < 50) {
+    // Enhanced path drawing logic:
+    // 1. For closely aligned points vertically, use a straight line
+    // 2. For points aligned horizontally, use a simple curve
+    // 3. For most cases, use a nice S-curve with proper corners
+
+    // If the cards are roughly aligned vertically and close
+    if (Math.abs(relFromX - relToX) < 30 && verticalDistance < 150) {
       // Simple vertical path with no corners needed
       pathData += ` L ${relToX} ${relToY}`;
-    } else {
-      // Go down vertically to the midpoint
+    } 
+    // If the vertical distance is small, use a simple curve
+    else if (verticalDistance < 50) {
+      // Simple cubic bezier curve
+      pathData += ` C ${relFromX} ${relFromY + verticalDistance/2}, ${relToX} ${relToY - verticalDistance/2}, ${relToX} ${relToY}`;
+    }
+    // Default case: pipe-like path with corners
+    else {
+      // Go down vertically to the midpoint with some buffer
       pathData += ` L ${relFromX} ${relMidY - cornerRadius}`;
 
       // First corner
@@ -827,14 +842,19 @@ export default function PathLine({
         pointerEvents: "none",
         zIndex: 0,
       }}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1, translateY }}
+      initial={{ opacity: 0, translateY: 0 }}
+      animate={{ opacity: 1, translateY: 0 }}
       transition={{ delay, duration: 0.5 }}
     >
       <svg
         width={svgPosition.width}
         height={svgPosition.height}
-        style={{ overflow: "visible" }}
+        style={{ 
+          overflow: "visible",
+          position: "absolute",
+          top: 0,
+          left: 0
+        }}
         data-from-id={fromId}
         data-to-id={toId}
         className="path-line-svg"
@@ -844,8 +864,10 @@ export default function PathLine({
           fill="none"
           strokeWidth={strokeWidth}
           stroke={stroke}
-          strokeOpacity={isHighlighted ? 0.9 : 0.6}
+          strokeOpacity={isHighlighted ? 0.9 : 0.7}
           strokeDasharray={type === "rejected" ? "5,5" : "none"}
+          strokeLinecap="round"
+          strokeLinejoin="round"
           initial={{ pathLength: 0 }}
           animate={{ pathLength: 1 }}
           transition={{ duration: 0.8, delay: delay + 0.2 }}

@@ -60,17 +60,23 @@ export default function ConnectionStyles() {
         height: 12px; /* Increased size for better visibility */
         border-radius: 50%;
         z-index: 10;
-        opacity: 0.001; /* Almost invisible but still detectable by the DOM */
+        /* Debugging opacity - reduce to 0.001 in production */
+        opacity: 0.2; /* Increased opacity for easier debugging */
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.5); /* Add shadow to make visible during development */
       }
 
       /* Top connection point positioning */
       .connection-point-top {
-        top: -40px; /* Position slightly higher above the card */
+        top: 0; /* Position at the top of the card */
+        /* Debugging color - remove in production */
+        background-color: rgba(0, 0, 255, 0.5); /* Blue for debugging */
       }
 
       /* Bottom connection point positioning */
       .connection-point-bottom {
-        bottom: 10px; /* Position slightly lower below the card */
+        bottom: 0; /* Position at the bottom of the card */
+        /* Debugging color - remove in production */
+        background-color: rgba(255, 0, 0, 0.5); /* Red for debugging */
       }
 
       /* Visual marker styling - purely decorative endpoint display */
@@ -80,25 +86,26 @@ export default function ConnectionStyles() {
         position: absolute;
         left: 50%;
         transform: translateX(-50%);
-        width: 12px; /* Slightly larger than connection points */
-        height: 12px; /* Slightly larger than connection points */
+        width: 8px; /* Reduced from 12px to be less intrusive */
+        height: 8px; /* Reduced from 12px to be less intrusive */
         border-radius: 50%;
         z-index: 15; /* Above connection points */
-        border: 2px solid white;
-        box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
+        border: 1px solid white; /* Thinner border */
+        box-shadow: 0 0 3px rgba(0, 0, 0, 0.2); /* More subtle shadow */
         transition: transform 0.2s ease-in-out;
+        opacity: 0.6; /* Make more subtle */
       }
 
       /* Top endpoint marker positioning */
       .endpoint-marker-top {
-        top: -8px; /* Position visibly higher than the connection point */
-        background-color: rgba(0, 0, 255, 0.7); /* Blue for top markers */
+        top: 0; /* Position at top of card */
+        background-color: rgba(0, 0, 255, 0.5); /* More subtle blue */
       }
 
       /* Bottom endpoint marker positioning */
       .endpoint-marker-bottom {
-        bottom: -8px; /* Position visibly lower than the connection point */
-        background-color: rgba(255, 0, 0, 0.7); /* Red for bottom markers */
+        bottom: 0; /* Position at bottom of card */
+        background-color: rgba(255, 0, 0, 0.5); /* More subtle red */
       }
 
       /* Make markers subtly larger on hover to improve UX */

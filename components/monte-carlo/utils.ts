@@ -1,0 +1,155 @@
+import * as THREE from "three"
+import type { PointWithCluster } from "./hooks/use-monte-carlo-data"
+
+// Get color for a model (point colors)
+export const getModelColor = (model: string): THREE.Color => {
+  const modelLower = model.toLowerCase().trim()
+  if (modelLower.includes("gpt-4o") || modelLower.includes("gpt4o") || modelLower.includes("gpt-4")) {
+    return new THREE.Color("#3b82f6") // blue-500
+  }
+  if (modelLower.includes("claude-sonnet") || modelLower.includes("claude")) {
+    return new THREE.Color("#8b5cf6") // violet-500
+  }
+  if (modelLower.includes("o1")) {
+    return new THREE.Color("#10b981") // emerald-500
+  }
+  if (modelLower.includes("o3-mini") || modelLower.includes("o3")) {
+    return new THREE.Color("#f59e0b") // amber-500
+  }
+  return new THREE.Color("#94a3b8") // slate-400
+}
+
+// Get hex color string for selection and lines
+export const getSelectionColor = (
+  type: "point" | "cluster" | "hover" = "cluster",
+): string => {
+  if (type === "point") return "#f97316" // Orange for selected points
+  if (type === "hover") return "#f97316" // Bright orange for hover state
+  return "#4ade80" // Brighter green for clusters
+}
+
+// Check if a point is in a selected cluster
+export const isPointInSelectedCluster = (
+  point: PointWithCluster,
+  selectedClusters: number[],
+): boolean => {
+  return selectedClusters.includes(point.cluster ?? -1)
+}
+
+// Helper function to find closest points
+export function findClosestPoints(point: PointWithCluster, allPoints: PointWithCluster[], count: number): PointWithCluster[] {
+  return allPoints
+    .filter((p) => p.id !== point.id)
+    .map((p) => {
+      const dx = point.position[0] - p.position[0]
+      const dy = point.position[1] - p.position[1]
+      const dz = point.position[2] - p.position[2]
+      const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+      return { point: p, distance }
+    })
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, count)
+    .map((item) => item.point)
+}
+
+// Get model color for cards and badges
+export const getModelCardColor = (model: string) => {
+  if (model.includes("GPT")) return "bg-blue-100 text-blue-500 border-blue-200"
+  if (model.includes("Claude")) return "bg-violet-100 text-violet-500 border-violet-200"
+  if (model.includes("o1")) return "bg-green-100 text-green-500 border-green-200"
+  if (model.includes("o3")) return "bg-amber-100 text-amber-500 border-amber-200"
+  return "bg-slate-100 text-slate-500 border-slate-200"
+}
+
+// Format a batch ID to be more readable
+export const formatBatchId = (batchId: string): string => {
+  const timestampMatch = batchId.match(/batch_(\d+)_/)
+  if (timestampMatch && timestampMatch[1]) {
+    const timestamp = parseInt(timestampMatch[1], 10)
+    if (!isNaN(timestamp)) {
+      try {
+        const date = new Date(timestamp * 1000)
+        const formattedDate = date.toLocaleString()
+        const uniquePart = batchId.split("_").slice(2).join("_")
+        // Limit unique part length if needed
+        const displayPart = uniquePart.length > 15 ? uniquePart.substring(0, 12) + "..." : uniquePart
+        return `${formattedDate} (${displayPart})`
+      } catch (e) {
+        console.error("Error formatting date:", e)
+      }
+    }
+  }
+  return batchId.replace("batch_", "Batch ").replace(/_/g, " ").substring(0, 30) + (batchId.length > 30 ? "..." : "")
+}
+
+// Add a function to normalize and spread points better in the 3D space
+export const normalizeAndSpreadPoints = (points: PointWithCluster[]): PointWithCluster[] => {
+  if (points.length <= 1) return points
+
+  let minX = Infinity, maxX = -Infinity
+  let minY = Infinity, maxY = -Infinity
+  let minZ = Infinity, maxZ = -Infinity
+
+  points.forEach(point => {
+    minX = Math.min(minX, point.position[0])
+    maxX = Math.max(maxX, point.position[0])
+    minY = Math.min(minY, point.position[1])
+    maxY = Math.max(maxY, point.position[1])
+    minZ = Math.min(minZ, point.position[2])
+    maxZ = Math.max(maxZ, point.position[2])
+  })
+
+  const rangeX = maxX - minX || 1
+  const rangeY = maxY - minY || 1
+  const rangeZ = maxZ - minZ || 1
+  const spread = 16
+
+  return points.map(point => {
+    const normalizedPosition: [number, number, number] = [
+      ((point.position[0] - minX) / rangeX) * spread - (spread / 2),
+      ((point.position[1] - minY) / rangeY) * spread - (spread / 2),
+      ((point.position[2] - minZ) / rangeZ) * spread - (spread / 2)
+    ]
+    return { ...point, position: normalizedPosition }
+  })
+}
+
+// Add a new function to add jitter to point positions to prevent overlapping
+export const addJitterToPoints = (points: PointWithCluster[]): PointWithCluster[] => {
+  if (!points.length) return points
+
+  const positionMap = new Map<string, number>()
+
+  points.forEach(point => {
+    const posKey = point.position.join(',')
+    positionMap.set(posKey, (positionMap.get(posKey) || 0) + 1)
+  })
+
+  const getJitterAmount = (count: number) => {
+    if (count <= 1) return 0
+    const baseJitter = 0.2
+    return Math.min(baseJitter * Math.sqrt(count), 0.8)
+  }
+
+  return points.map(point => {
+    const posKey = point.position.join(',')
+    const count = positionMap.get(posKey) || 0
+
+    if (count <= 1) return point
+
+    const jitterAmount = getJitterAmount(count)
+    const jitteredPosition: [number, number, number] = [
+      point.position[0] + (Math.random() * 2 - 1) * jitterAmount,
+      point.position[1] + (Math.random() * 2 - 1) * jitterAmount,
+      point.position[2] + (Math.random() * 2 - 1) * jitterAmount
+    ]
+
+    return { ...point, position: jitteredPosition }
+  })
+}
+
+// Type for point detection results
+export interface PointDetectionResult {
+  index: number
+  distance: number
+} 
