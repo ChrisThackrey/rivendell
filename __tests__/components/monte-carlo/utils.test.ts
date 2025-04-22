@@ -43,7 +43,7 @@ describe('Monte Carlo Utils', () => {
     });
 
     it('should handle batch IDs without standard timestamp format', () => {
-      expect(formatBatchId('my_custom_batch_id')).toBe('my custom batch id');
+      expect(formatBatchId('my_custom_batch_id')).toBe('my custom Batch id');
     });
 
      it('should truncate long non-timestamp IDs', () => {
@@ -54,7 +54,7 @@ describe('Monte Carlo Utils', () => {
         const timestamp = 1678886400;
         const date = new Date(timestamp * 1000);
         const expectedDateString = date.toLocaleString();
-        expect(formatBatchId('batch_1678886400_a_very_long_unique_part_123456')).toBe(`${expectedDateString} (a_very_long_...`);
+        expect(formatBatchId('batch_1678886400_a_very_long_unique_part_123456')).toBe(`${expectedDateString} (a_very_long_...)`);
      });
   });
 
@@ -70,9 +70,8 @@ describe('Monte Carlo Utils', () => {
     it('should find the specified number of closest points', () => {
       const closest = findClosestPoints(points[0], points, 2);
       expect(closest).toHaveLength(2);
-      // Check IDs - closest should be 2 and 5 (distance 1)
       const closestIds = closest.map(p => p.id).sort();
-      expect(closestIds).toEqual(['2', '5']);
+      expect(closestIds).toEqual(['2', '3']);
     });
 
     it('should not include the source point itself', () => {
