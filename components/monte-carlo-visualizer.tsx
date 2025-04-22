@@ -102,14 +102,13 @@ export default function MonteCarloVisualizer({
        else if (points.length <= 20) marginFactor = 1.1 * zoomFactor;
        const minDistance = (points.length <= 5 ? 8 : 20) / zoomFactor;
        distance = Math.max(distance * marginFactor, minDistance);
-       let cameraPosition: [number, number, number];
        const offset = new THREE.Vector3(0, 0, distance);
        if (points.length <= 10) {
            offset.applyAxisAngle(new THREE.Vector3(1, 0, 0), THREE.MathUtils.degToRad(15));
            offset.applyAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(15));
        }
        const finalPosition = center.clone().add(offset);
-       cameraPosition = [finalPosition.x, finalPosition.y, finalPosition.z];
+       const cameraPosition: [number, number, number] = [finalPosition.x, finalPosition.y, finalPosition.z];
        const newTarget: [number, number, number] = [center.x, center.y, center.z];
        setCameraState({ position: cameraPosition, target: newTarget });
        controlsRef.current.target.set(...newTarget);

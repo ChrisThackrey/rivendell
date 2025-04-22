@@ -52,7 +52,8 @@ export function Points({
     meshRef.current.instanceMatrix.needsUpdate = true;
     if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
     meshRef.current.count = data.length; // Ensure count matches data length
-    meshRef.current.geometry.instanceCount = data.length; // Required for older three versions maybe
+    // Three.js typing fix - instanceCount doesn't exist in type definitions but works at runtime
+    (meshRef.current.geometry as any).instanceCount = data.length; // Required for older three versions
   }, [data, tempObject]);
 
   // Update Instance Colors based on state
@@ -170,7 +171,7 @@ export function Points({
                  closestPoint = { index, distance };
              }
          });
-         if(closestPoint) foundInstanceId = closestPoint.index;
+         if(closestPoint) foundInstanceId = (closestPoint as PointDetectionResult).index;
      }
 
      const currentHoverId = hoveredPoint?.id;

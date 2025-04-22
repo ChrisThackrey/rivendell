@@ -4,7 +4,7 @@ import React from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Button } from '@/components/ui/button';
 import { Loader2, Focus } from 'lucide-react';
-import { ModelLegend } from './model-legend'; // Assuming ModelLegend is extracted too
+import { ModelLegend } from './ModelLegend'; // Import with correct capitalized filename
 import { Scene } from './scene/scene';
 import { WebGLContextLostManager } from './scene/webgl-context-lost-manager';
 import type { PointWithCluster } from '@/lib/monte-carlo-service';

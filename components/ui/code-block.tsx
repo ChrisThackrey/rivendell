@@ -17,10 +17,7 @@ export type CodeFile = {
   language?: string;
   id?: string;
   source?: string;
-  stepInfo?: {
-    runId?: number | string;
-    stepNumber?: number | null;
-  };
+  metadata?: Record<string, unknown>;
 };
 
 export type CodeBlockProps = {
@@ -89,6 +86,9 @@ export type CodeBlockCodeProps = {
     source?: string;
     description?: string;
     fetchSource?: string;
+    stepInfo?: { runId?: number | string | null; stepNumber?: number | null };
+    cacheKey?: string;
+    [key: string]: unknown;
   };
 } & React.HTMLProps<HTMLDivElement>;
 
@@ -211,8 +211,7 @@ function CodeBlockCode({
     "[&_.line-numbered]:relative [&_.line-numbered]:pl-16 [&_.line-numbered]:block",
     "[&_.line-numbered]:before:absolute [&_.line-numbered]:before:left-0 [&_.line-numbered]:before:w-12",
     "[&_.line-numbered]:before:content-[attr(data-line-number)] [&_.line-numbered]:before:text-right",
-    "[&_.line-numbered]:before:text-muted-foreground/70 [&_.line-numbered]:before:select-none",
-    "[&_.line-numbered]:before:pr-2 [&_.line-numbered:hover]:before:bg-muted/50 [&_.line-numbered:hover]:bg-muted/10",
+    "[&_.line-numbered]:before:text-muted-foreground/70 [&_.line-numbered:hover]:before:bg-muted/50 [&_.line-numbered:hover]:bg-muted/10",
 
     // Content styling
     "max-w-full border-0",
@@ -242,6 +241,32 @@ function CodeBlockCode({
             <span>•</span>
             <span className="flex items-center gap-1">
               <span className="font-medium">Source:</span> {metadata.source}
+            </span>
+          </>
+        )}
+        {metadata?.fetchSource && (
+          <>
+            <span>•</span>
+            <span className="flex items-center gap-1">
+              <span className="font-medium">Fetch Source:</span> {metadata.fetchSource}
+            </span>
+          </>
+        )}
+        {/* Display step number if available */}
+        {metadata?.stepInfo?.stepNumber != null && (
+          <>
+            <span>•</span>
+            <span className="flex items-center gap-1">
+              <span className="font-medium">Step:</span> {metadata.stepInfo.stepNumber + 1}
+            </span>
+          </>
+        )}
+        {/* Display cache key if available */}
+        {metadata?.cacheKey && (
+          <>
+            <span>•</span>
+            <span className="flex items-center gap-1">
+              <span className="font-medium">CacheKey:</span> {metadata.cacheKey}
             </span>
           </>
         )}

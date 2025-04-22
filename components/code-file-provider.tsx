@@ -16,6 +16,7 @@ type CodeFileContextType = {
   getBatchCodeFiles: (batchId: string) => Promise<Record<string, CodeFile[]>>;
   cachedFiles: Record<string, CodeFile[]>;
   batchCaches: Record<string, Record<string, CodeFile[]>>;
+  updateCachedFiles?: (key: string, files: CodeFile[]) => void;
 };
 
 // Create the context with default values
@@ -254,6 +255,15 @@ export function CodeFileProvider({ children }: { children: ReactNode }) {
     [batchCaches, fetchingBatches],
   );
 
+  // Function to manually update the cached files for a document ID
+  const updateCachedFiles = useCallback((key: string, files: CodeFile[]) => {
+    console.log(`Manually updating cache for key ${key} with ${files.length} files`);
+    setCachedFiles((prev) => ({
+      ...prev,
+      [key]: files,
+    }));
+  }, []);
+
   // Event listener for direct cache updates
   useEffect(() => {
     const handleCacheUpdate = (event: CustomEvent) => {
@@ -291,6 +301,7 @@ export function CodeFileProvider({ children }: { children: ReactNode }) {
         getBatchCodeFiles,
         cachedFiles,
         batchCaches,
+        updateCachedFiles,
       }}
       data-code-files-context="true"
     >

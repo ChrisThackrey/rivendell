@@ -104,7 +104,7 @@ export function Points({
       }
 
       tempColor.set(targetColor)
-      instanceColor.setColorAt(i, tempColor)
+      meshRef.current?.setColorAt(i, tempColor)
     })
 
     instanceColor.needsUpdate = true

@@ -155,6 +155,7 @@ export function useSolutionCode({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const [fetchedFileTree, setFetchedFileTree] = useState<string | null>(null)
+  const [lastFetchSource, setLastFetchSource] = useState<string>("unknown")
 
   const cacheKey = useMemo(() => {
     if (!id) return null
@@ -186,10 +187,10 @@ export function useSolutionCode({
 
     try {
       let foundFiles: CodeFile[] = []
-      let fetchSource = "unknown"
+      let fetchSource: string = "unknown"
 
       // 1. Try step-specific search if applicable
-      if (runId !== undefined && stepIndex !== undefined) {
+      if (runId != null && stepIndex != null) {
         fetchSource = `step search (run ${runId}, step ${stepIndex})`
         try {
           let searchQuery = title || (metadata as any)?.stepTitle || ""
@@ -215,9 +216,12 @@ export function useSolutionCode({
                 language: file.language || getLanguageFromFilename(file.filename || "unknown.txt"),
                 code: file.code || "// No code content available",
                 id: file.id || `${cacheKey}_${file.filename || "unknown"}`,
-                documentId: file.documentId,
-                stepInfo: { runId, stepNumber: stepIndex }, cacheKey,
                 source: file.source || "api-step-search",
+                metadata: {
+                  fetchSource,
+                  stepInfo: { runId, stepNumber: stepIndex },
+                  cacheKey,
+                },
               }))
               const meaningfulFiles = stepFiles.filter((file: CodeFile) => !isPlaceholderOrEmptyCode(file.code))
               if (meaningfulFiles.length > 0) {
@@ -240,10 +244,16 @@ export function useSolutionCode({
           const contextFiles = await getCodeFiles(id) // Assumes getCodeFiles fetches if not cached
           if (contextFiles.length > 0) {
              foundFiles = contextFiles.map((file) => ({
-                ...file,
+                filename: file.filename,
+                language: file.language,
+                code: file.code,
                 id: file.id || `${cacheKey}_${file.filename || "unknown"}`,
-                stepInfo: { runId, stepNumber: stepIndex }, cacheKey,
                 source: "context-getcodefiles",
+                metadata: {
+                  fetchSource,
+                  stepInfo: { runId, stepNumber: stepIndex },
+                  cacheKey,
+                },
              }))
              fetchSource = `Context getCodeFiles (${foundFiles.length} files)`
           }
@@ -267,9 +277,12 @@ export function useSolutionCode({
                       language: file.language || getLanguageFromFilename(file.filename || "unknown.txt"),
                       code: file.code || "// No code content available",
                       id: file.id || `${cacheKey}_${file.filename || "unknown"}`,
-                      documentId: file.documentId,
-                      stepInfo: { runId, stepNumber: stepIndex }, cacheKey,
                       source: "api-direct-docid",
+                      metadata: {
+                        fetchSource,
+                        stepInfo: { runId, stepNumber: stepIndex },
+                        cacheKey,
+                      },
                    }))
                    foundFiles = directFiles
                    fetchSource = `Direct API call (${foundFiles.length} files)`
@@ -293,10 +306,14 @@ export function useSolutionCode({
             console.log(`All fetched files were placeholders for ${cacheKey}, creating placeholder.`)
             finalFiles = [{
                 filename: "No Code Files Found", language: "plaintext",
-                code: `// No meaningful code files found via ${fetchSource}\n// Document ID: ${id}\n// Step: ${stepIndex !== undefined ? stepIndex + 1 : "N/A"}, Run: ${runId || "N/A"}`,
+                code: `// No meaningful code files found via ${lastFetchSource}\n// Document ID: ${id}\n// Step: ${stepIndex != null ? stepIndex + 1 : "N/A"}, Run: ${runId || "N/A"}`,
                 id: `${cacheKey}_no_meaningful_code`,
-                stepInfo: { runId, stepNumber: stepIndex }, cacheKey,
                 source: "placeholder-no-meaningful-code",
+                metadata: {
+                  fetchSource: lastFetchSource,
+                  stepInfo: { runId, stepNumber: stepIndex },
+                  cacheKey,
+                },
              }]
          }
       } else {
@@ -304,13 +321,18 @@ export function useSolutionCode({
          console.log(`No files found for ${cacheKey}, creating placeholder.`)
          finalFiles = [{
              filename: "No Code Files Found", language: "plaintext",
-             code: `// No code files found for document ID: ${id}\n// Step: ${stepIndex !== undefined ? stepIndex + 1 : "N/A"}, Run: ${runId || "N/A"}`,
+             code: `// No code files found for document ID: ${id}\n// Step: ${stepIndex != null ? stepIndex + 1 : "N/A"}, Run: ${runId || "N/A"}`,
              id: `${cacheKey}_no_codefiles`,
-             stepInfo: { runId, stepNumber: stepIndex }, cacheKey,
              source: "placeholder-no-files",
+             metadata: {
+               fetchSource: lastFetchSource,
+               stepInfo: { runId, stepNumber: stepIndex },
+               cacheKey,
+             },
           }]
       }
 
+      setLastFetchSource(fetchSource)
       setInternalCodeFiles(finalFiles)
       // Update context cache using the assumed function
       if (updateCachedFiles) {
@@ -320,13 +342,19 @@ export function useSolutionCode({
       }
 
     } catch (err) {
+      setLastFetchSource("error")
       console.error(`Error fetching code files for ${cacheKey}:`, err)
       setError(err instanceof Error ? err : new Error(String(err)))
       const errorFile = [{
           filename: "Error Loading Code", language: "plaintext",
-          code: `// Error fetching code files for step ${stepIndex !== undefined ? stepIndex + 1 : ""} of run ${runId || "unknown"}:\n// ${err instanceof Error ? err.message : String(err)}`,
+          code: `// Error fetching code files for step ${stepIndex != null ? stepIndex + 1 : ""} of run ${runId || "unknown"}:\n// ${err instanceof Error ? err.message : String(err)}`,
           id: `${cacheKey}_error`,
-          stepInfo: { runId, stepNumber: stepIndex }, cacheKey, source: "error",
+          source: "error",
+          metadata: {
+            fetchSource: lastFetchSource,
+            stepInfo: { runId, stepNumber: stepIndex },
+            cacheKey,
+          },
       }]
       setInternalCodeFiles(errorFile)
       if (updateCachedFiles) {
@@ -335,11 +363,11 @@ export function useSolutionCode({
     } finally {
       setIsLoading(false)
     }
-  }, [id, runId, stepIndex, cacheKey, title, metadata, cachedFiles, getCodeFiles, updateCachedFiles, internalCodeFiles]) // Added internalCodeFiles to deps
+  }, [id, runId, stepIndex, cacheKey, title, metadata, cachedFiles, getCodeFiles, updateCachedFiles, internalCodeFiles])
 
   // --- fetchFileTree Logic ---
   const fetchFileTree = useCallback(async () => {
-     if (!id || !runId || stepIndex === undefined || fetchedFileTree) return
+     if (!id || runId == null || stepIndex == null || fetchedFileTree) return
 
      console.log(`Fetching file tree for key: ${cacheKey}`)
      try {
@@ -415,7 +443,7 @@ export function useSolutionCode({
   const filesToDisplay = useMemo(() => {
     // Add context header only to non-placeholder files
     const filesWithContext = internalCodeFiles.map((file) => {
-      if (isPlaceholderOrEmptyCode(file.code) || stepIndex === undefined) {
+      if (isPlaceholderOrEmptyCode(file.code) || stepIndex == null) {
         return file
       }
       // Add context header
@@ -444,16 +472,21 @@ export function useSolutionCode({
        // If all files were filtered, return a generic placeholder
        return [{
           filename: "No Meaningful Code", language: "plaintext",
-          code: `// No meaningful code files available for step ${stepIndex !== undefined ? stepIndex + 1 : ""}: ${title}\n// Fetched files might have been placeholders or empty.`,
+          code: `// No meaningful code files available for step ${stepIndex != null ? stepIndex + 1 : ""}: ${title}\n// Fetched files might have been placeholders or empty.`,
           id: `${cacheKey}_no_meaningful_code_fallback`,
-          stepInfo: { runId, stepNumber: stepIndex }, cacheKey, source: "placeholder-fallback",
+          source: "placeholder-fallback",
+          metadata: {
+            fetchSource: lastFetchSource,
+            stepInfo: { runId, stepNumber: stepIndex },
+            cacheKey,
+          },
        }]
     }
 
     // Default empty array if internalCodeFiles is empty initially
     return []
 
-  }, [internalCodeFiles, stepIndex, title, cacheKey, runId])
+  }, [internalCodeFiles, stepIndex, title, cacheKey, runId, lastFetchSource])
 
 
   // Expose a refetch function that forces cache bypass
