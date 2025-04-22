@@ -6,18 +6,18 @@ import { normalizeAndSpreadPoints, addJitterToPoints } from "@/lib/monte-carlo-s
 export const getModelColor = (model: string): THREE.Color => {
   const modelLower = model.toLowerCase().trim()
   if (modelLower.includes("gpt-4o") || modelLower.includes("gpt4o") || modelLower.includes("gpt-4")) {
-    return new THREE.Color("#3b82f6") // blue-500
+    return new THREE.Color("#93c5fd") // blue-300 - matches ModelLegend
   }
   if (modelLower.includes("claude-sonnet") || modelLower.includes("claude")) {
-    return new THREE.Color("#8b5cf6") // violet-500
+    return new THREE.Color("#c4b5fd") // violet-300 - matches ModelLegend
   }
   if (modelLower.includes("o1")) {
-    return new THREE.Color("#10b981") // emerald-500
+    return new THREE.Color("#86efac") // green-300 - matches ModelLegend
   }
   if (modelLower.includes("o3-mini") || modelLower.includes("o3")) {
-    return new THREE.Color("#f59e0b") // amber-500
+    return new THREE.Color("#fcd34d") // amber-300 - matches ModelLegend
   }
-  return new THREE.Color("#94a3b8") // slate-400
+  return new THREE.Color("#cbd5e1") // slate-300 - matches ModelLegend
 }
 
 // Get hex color string for selection and lines

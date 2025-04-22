@@ -58,12 +58,16 @@ export function Points({
 
   // Update Instance Colors based on state
   useEffect(() => {
-    if (!meshRef.current || !meshRef.current.instanceColor || !data.length) return;
+    if (!meshRef.current || !data.length) return;
+    // Create a temp color object that won't get recreated on each render
     const tempColor = new THREE.Color();
+    
+    // Store initial model colors to use as base
     const baseColors = data.map(p => getModelColor(p.model));
 
     data.forEach((point, i) => {
-        let finalColor = baseColors[i]; // Start with base color
+        // Start with the base model color
+        let finalColor = baseColors[i];
 
         const isSelected = selectedPoint?.id === point.id;
         const isHovered = hoveredPoint?.id === point.id;
@@ -77,17 +81,24 @@ export function Points({
 
         // Order of precedence: Selected > Hovered > Cluster Selection
         if (isSelected || isProximalToSelected) {
-            finalColor = tempColor.set("#f97316"); // Orange
+            tempColor.set("#f97316"); // Orange
+            meshRef.current!.setColorAt(i, tempColor);
         } else if (isHovered || isProximalToHovered) {
-             finalColor = tempColor.set("#f97316"); // Orange
+            tempColor.set("#f97316"); // Orange
+            meshRef.current!.setColorAt(i, tempColor);
         } else if (isInSelectedCluster) {
-            finalColor = tempColor.set("#4ade80"); // Green
+            tempColor.set("#4ade80"); // Green
+            meshRef.current!.setColorAt(i, tempColor);
+        } else {
+            // Otherwise, use the base model color (reapply to ensure consistent state)
+            meshRef.current!.setColorAt(i, finalColor);
         }
-
-        meshRef.current!.setColorAt(i, finalColor);
     });
 
-    meshRef.current.instanceColor.needsUpdate = true;
+    // Ensure we update the buffer after making changes
+    if (meshRef.current.instanceColor) {
+        meshRef.current.instanceColor.needsUpdate = true;
+    }
     invalidate();
   }, [data, hoveredPoint, selectedPoint, selectedClusters, invalidate]);
 

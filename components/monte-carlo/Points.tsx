@@ -79,9 +79,15 @@ export function Points({
 
   // Update instance colors based on hover, selection, and cluster selection
   useEffect(() => {
-    if (!meshRef.current?.instanceColor || !data.length) return
+    if (!meshRef.current || !data.length) return
 
-    const instanceColor = meshRef.current.instanceColor
+    // Create a color object for reuse
+    const tempColor = new THREE.Color()
+    
+    // Store initial model colors to use as base
+    const baseColors = data.map(p => getModelColor(p.model))
+    
+    // Find points close to selected/hovered
     const closestToSelected = selectedPoint ? findClosestPoints(selectedPoint, data, 4) : []
     const closestToHovered = hoveredPoint ? findClosestPoints(hoveredPoint, data, 4) : []
 
@@ -92,24 +98,28 @@ export function Points({
       const isClosestToHovered = closestToHovered.some(p => p.id === point.id)
       const isInSelectedCluster = point.cluster && selectedClusters.includes(point.cluster)
 
-      let targetColor: THREE.Color | string = getModelColor(point.model) // Default color
-
-      // Order of precedence: Selected > Hovered > Cluster Selection
+      // Order of precedence: Selected > Hovered > Cluster Selection > Base Model Color
       if (isSelected || isClosestToSelected) {
-        targetColor = "#f97316" // Orange for selected and its connections
+        tempColor.set("#f97316") // Orange for selected and its connections
+        meshRef.current?.setColorAt(i, tempColor)
       } else if (isHovered || isClosestToHovered) {
-        targetColor = "#f97316" // Orange for hovered and its connections
+        tempColor.set("#f97316") // Orange for hovered and its connections
+        meshRef.current?.setColorAt(i, tempColor)
       } else if (isInSelectedCluster) {
-        targetColor = "#4ade80" // Green for points in selected clusters
+        tempColor.set("#4ade80") // Green for points in selected clusters
+        meshRef.current?.setColorAt(i, tempColor)
+      } else {
+        // Use the base model color directly
+        meshRef.current?.setColorAt(i, baseColors[i])
       }
-
-      tempColor.set(targetColor)
-      meshRef.current?.setColorAt(i, tempColor)
     })
 
-    instanceColor.needsUpdate = true
+    // Ensure the instance color buffer is updated
+    if (meshRef.current.instanceColor) {
+      meshRef.current.instanceColor.needsUpdate = true
+    }
     invalidate()
-  }, [data, hoveredPoint, selectedPoint, selectedClusters, invalidate, tempColor])
+  }, [data, hoveredPoint, selectedPoint, selectedClusters, invalidate])
 
   // Update highlight sphere (hover)
   useEffect(() => {
