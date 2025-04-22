@@ -1,5 +1,6 @@
 import * as THREE from "three"
-import type { PointWithCluster } from "./hooks/use-monte-carlo-data"
+import type { PointWithCluster } from "@/lib/monte-carlo-service"
+import { normalizeAndSpreadPoints, addJitterToPoints } from "@/lib/monte-carlo-service"
 
 // Get color for a model (point colors)
 export const getModelColor = (model: string): THREE.Color => {
@@ -80,72 +81,6 @@ export const formatBatchId = (batchId: string): string => {
     }
   }
   return batchId.replace("batch_", "Batch ").replace(/_/g, " ").substring(0, 30) + (batchId.length > 30 ? "..." : "")
-}
-
-// Add a function to normalize and spread points better in the 3D space
-export const normalizeAndSpreadPoints = (points: PointWithCluster[]): PointWithCluster[] => {
-  if (points.length <= 1) return points
-
-  let minX = Infinity, maxX = -Infinity
-  let minY = Infinity, maxY = -Infinity
-  let minZ = Infinity, maxZ = -Infinity
-
-  points.forEach(point => {
-    minX = Math.min(minX, point.position[0])
-    maxX = Math.max(maxX, point.position[0])
-    minY = Math.min(minY, point.position[1])
-    maxY = Math.max(maxY, point.position[1])
-    minZ = Math.min(minZ, point.position[2])
-    maxZ = Math.max(maxZ, point.position[2])
-  })
-
-  const rangeX = maxX - minX || 1
-  const rangeY = maxY - minY || 1
-  const rangeZ = maxZ - minZ || 1
-  const spread = 16
-
-  return points.map(point => {
-    const normalizedPosition: [number, number, number] = [
-      ((point.position[0] - minX) / rangeX) * spread - (spread / 2),
-      ((point.position[1] - minY) / rangeY) * spread - (spread / 2),
-      ((point.position[2] - minZ) / rangeZ) * spread - (spread / 2)
-    ]
-    return { ...point, position: normalizedPosition }
-  })
-}
-
-// Add a new function to add jitter to point positions to prevent overlapping
-export const addJitterToPoints = (points: PointWithCluster[]): PointWithCluster[] => {
-  if (!points.length) return points
-
-  const positionMap = new Map<string, number>()
-
-  points.forEach(point => {
-    const posKey = point.position.join(',')
-    positionMap.set(posKey, (positionMap.get(posKey) || 0) + 1)
-  })
-
-  const getJitterAmount = (count: number) => {
-    if (count <= 1) return 0
-    const baseJitter = 0.2
-    return Math.min(baseJitter * Math.sqrt(count), 0.8)
-  }
-
-  return points.map(point => {
-    const posKey = point.position.join(',')
-    const count = positionMap.get(posKey) || 0
-
-    if (count <= 1) return point
-
-    const jitterAmount = getJitterAmount(count)
-    const jitteredPosition: [number, number, number] = [
-      point.position[0] + (Math.random() * 2 - 1) * jitterAmount,
-      point.position[1] + (Math.random() * 2 - 1) * jitterAmount,
-      point.position[2] + (Math.random() * 2 - 1) * jitterAmount
-    ]
-
-    return { ...point, position: jitteredPosition }
-  })
 }
 
 // Type for point detection results

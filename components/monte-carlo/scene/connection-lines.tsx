@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Line } from '@react-three/drei';
-import type { PointWithCluster } from '../hooks/use-monte-carlo-data';
+import type { PointWithCluster } from '@/lib/monte-carlo-service';
 
 interface ConnectionLinesProps {
   point: PointWithCluster | null;

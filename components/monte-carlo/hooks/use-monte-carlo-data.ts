@@ -2,17 +2,14 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   MonteCarloDataPoint,
   MonteCarloCluster,
-  fetchMonteCarloDataForBatch, // Renamed from fetchMonteCarloData for clarity
+  fetchMonteCarloDataForBatch,
   generateClusters,
   generateClusterTitles,
   fetchAvailableBatchIds,
-  // Assume these helpers are available from the service/utils
   normalizeAndSpreadPoints,
   addJitterToPoints,
-} from "@/lib/monte-carlo-service"; // Adjust path if utils file is used
-
-// Type alias for clarity
-export type PointWithCluster = MonteCarloDataPoint & { cluster?: number };
+  PointWithCluster,
+} from "@/lib/monte-carlo-service";
 
 interface UseMonteCarloDataProps {
   initialBatchId?: string | null;

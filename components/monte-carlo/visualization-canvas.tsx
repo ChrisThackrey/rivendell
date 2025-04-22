@@ -7,7 +7,7 @@ import { Loader2, Focus } from 'lucide-react';
 import { ModelLegend } from './model-legend'; // Assuming ModelLegend is extracted too
 import { Scene } from './scene/scene';
 import { WebGLContextLostManager } from './scene/webgl-context-lost-manager';
-import type { PointWithCluster } from './hooks/use-monte-carlo-data';
+import type { PointWithCluster } from '@/lib/monte-carlo-service';
 import type { MonteCarloCluster } from '@/lib/monte-carlo-service';
 
 interface VisualizationCanvasProps {

@@ -105,7 +105,7 @@ project-root/
       { filename: 'test.js', language: 'javascript', code: 'console.log("hello")' }
     ]
     
-    render(<SolutionCard {...defaultProps} codeFiles={codeFiles} fileTree={fileTree} />)
+    render(<SolutionCard {...defaultProps} codeFiles={codeFiles} />)
     
     const viewCodeBtn = screen.getByText('View Code')
     fireEvent.click(viewCodeBtn)

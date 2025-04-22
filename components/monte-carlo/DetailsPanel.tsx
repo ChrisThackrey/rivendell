@@ -1,5 +1,5 @@
 import React from "react"
-import type { PointWithCluster, MonteCarloCluster } from "@/lib/monte-carlo-service"
+import type { PointWithCluster } from "@/lib/monte-carlo-service"
 import { DetailCard } from "./DetailCard" // Import the DetailCard component
 
 interface DetailsPanelProps {
@@ -9,7 +9,7 @@ interface DetailsPanelProps {
   selectedClusters: number[] // IDs of selected clusters
   hoveredPoint: PointWithCluster | null
   closestPoints: PointWithCluster[] // Closest to hovered point
-  clusters: MonteCarloCluster[] // All clusters for title lookup
+  // clusters: PointWithCluster[] // All clusters for title lookup (remove if not used)
   handleSelectPoint: (point: PointWithCluster) => void
 }
 
@@ -20,20 +20,9 @@ export function DetailsPanel({
   selectedClusters,
   hoveredPoint,
   closestPoints,
-  clusters,
+  // clusters: PointWithCluster[] // All clusters for title lookup (remove if not used)
   handleSelectPoint,
 }: DetailsPanelProps) {
-  // Helper to get the title for the selected cluster(s)
-  const getSelectedClusterTitle = () => {
-    if (selectedClusters.length === 1) {
-      const cluster = clusters.find((c) => c.id === selectedClusters[0])
-      return cluster ? cluster.label : ""
-    } else if (selectedClusters.length > 1) {
-      return "Multiple Clusters"
-    }
-    return ""
-  }
-
   return (
     <div className="col-span-12 md:col-span-12 lg:col-span-3 space-y-4 overflow-y-auto h-full pr-2 pb-4">
       {selectedClusterPoints.length > 0 ? (
@@ -41,7 +30,7 @@ export function DetailsPanel({
         <>
           <div className="px-4 py-2 bg-green-100/40 rounded-md mb-4 flex items-center justify-between">
             <h3 className="text-lg font-semibold text-slate-900">
-              Cluster: {getSelectedClusterTitle()}
+              {selectedClusters.length === 1 ? `Cluster ${selectedClusters[0]}` : selectedClusters.length > 1 ? "Multiple Clusters" : "Cluster"}
             </h3>
             <span className="text-sm text-slate-600">
               {selectedClusterPoints.length} Points

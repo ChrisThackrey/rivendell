@@ -8,7 +8,7 @@ import { ClusterCubes } from './cluster-cubes';
 import { Points } from './points';
 import { PointLabels } from './point-labels';
 import { ConnectionLines } from './connection-lines';
-import type { PointWithCluster } from '../hooks/use-monte-carlo-data';
+import type { PointWithCluster } from '@/lib/monte-carlo-service';
 import type { MonteCarloCluster } from '@/lib/monte-carlo-service'; // Import needed type
 
 interface SceneProps {

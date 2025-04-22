@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import { Html } from '@react-three/drei';
 import { cn } from '@/lib/utils';
-import type { PointWithCluster } from '../hooks/use-monte-carlo-data';
+import type { PointWithCluster } from '@/lib/monte-carlo-service';
 import { isPointInSelectedCluster, formatBatchId } from '../utils';
 
 interface PointLabelsProps {

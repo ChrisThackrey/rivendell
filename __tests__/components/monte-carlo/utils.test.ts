@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three'; // Import THREE if needed for Color comparison
-import { PointWithCluster } from '@/components/monte-carlo/hooks/use-monte-carlo-data'; // Adjust path
+import { PointWithCluster, normalizeAndSpreadPoints, addJitterToPoints } from '@/lib/monte-carlo-service';
 import {
   formatBatchId,
   findClosestPoints,
@@ -8,8 +8,6 @@ import {
   getSelectionColor,
   isPointInSelectedCluster,
   getModelCardColor,
-  normalizeAndSpreadPoints,
-  addJitterToPoints
 } from '@/components/monte-carlo/utils'; // Adjust path
 
 // Mock PointWithCluster type for testing findClosestPoints etc.
@@ -25,7 +23,7 @@ const createMockPoint = (id: string, position: [number, number, number], model: 
   cluster,
   // Add other required fields if PointWithCluster definition changes
   batchId: 'batch_1678886400_test', // Example batchId
-  ensemble_config_id: 'config-1', // Example config_id
+  originalContent: `Mock content for point ${id}`,
 });
 
 

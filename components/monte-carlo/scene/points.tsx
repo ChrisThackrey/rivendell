@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useMemo, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import type { PointWithCluster } from '../hooks/use-monte-carlo-data';
+import type { PointWithCluster } from '@/lib/monte-carlo-service';
 import { getModelColor, findClosestPoints, PointDetectionResult } from '../utils'; // Import helper
 
 interface PointsProps {

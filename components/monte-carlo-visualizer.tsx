@@ -10,7 +10,8 @@ import * as THREE from "three"; // Added import for THREE types used in focusCam
 import { Button } from "@/components/ui/button";
 import { Loader2, Focus } from "lucide-react";
 import { cn } from "@/lib/utils"; // Keep cn if used elsewhere, otherwise remove
-import { useMonteCarloData, PointWithCluster } from "./monte-carlo/hooks/use-monte-carlo-data";
+import { useMonteCarloData } from "./monte-carlo/hooks/use-monte-carlo-data";
+import type { PointWithCluster } from "@/lib/monte-carlo-service";
 import { BatchSelectionPanel } from "./monte-carlo/batch-selection-panel";
 import { DetailsPanel } from "./monte-carlo/details-panel";
 // ModelLegend import removed as it's inside VisualizationCanvas

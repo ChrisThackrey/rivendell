@@ -43,6 +43,9 @@ interface AvailableBatchRow {
   latest_created_at: string;
 }
 
+// Type alias for points with cluster info
+export type PointWithCluster = MonteCarloDataPoint & { cluster?: number };
+
 /**
  * Fetch available batch IDs from the database via RPC
  */
@@ -237,8 +240,8 @@ export async function fetchMonteCarloData(
     });
 
     // Add post-processing to space out points and avoid overlaps
-    dataPoints = normalizeAndSpreadPositions(dataPoints);
-    dataPoints = addJitterToOverlappingPoints(dataPoints);
+    dataPoints = normalizeAndSpreadPoints(dataPoints);
+    dataPoints = addJitterToPoints(dataPoints);
 
     return { dataPoints, batchIds };
   } catch (error) {
@@ -247,17 +250,12 @@ export async function fetchMonteCarloData(
   }
 }
 
-/**
- * Normalize and spread out points to use the full 3D space
- */
-function normalizeAndSpreadPositions(points: MonteCarloDataPoint[]): MonteCarloDataPoint[] {
+// Utility: Normalize and spread points in 3D space
+export function normalizeAndSpreadPoints(points: PointWithCluster[]): PointWithCluster[] {
   if (points.length <= 1) return points;
-  
-  // First pass: find the min and max values for each dimension
   let minX = Infinity, maxX = -Infinity;
   let minY = Infinity, maxY = -Infinity;
   let minZ = Infinity, maxZ = -Infinity;
-  
   points.forEach(point => {
     minX = Math.min(minX, point.position[0]);
     maxX = Math.max(maxX, point.position[0]);
@@ -266,89 +264,44 @@ function normalizeAndSpreadPositions(points: MonteCarloDataPoint[]): MonteCarloD
     minZ = Math.min(minZ, point.position[2]);
     maxZ = Math.max(maxZ, point.position[2]);
   });
-  
-  // Calculate ranges for each dimension
-  const rangeX = maxX - minX || 1; // Avoid division by zero
+  const rangeX = maxX - minX || 1;
   const rangeY = maxY - minY || 1;
   const rangeZ = maxZ - minZ || 1;
-  
-  // Desired spread in each dimension
-  const targetSpread = 16; // Larger value creates more space between points
-  
-  // Apply normalization and scaling to spread points out
+  const spread = 16;
   return points.map(point => {
-    // Normalize each dimension to [0,1] range then scale to desired spread
-    // and re-center around origin
     const normalizedPosition: [number, number, number] = [
-      ((point.position[0] - minX) / rangeX) * targetSpread - (targetSpread / 2),
-      ((point.position[1] - minY) / rangeY) * targetSpread - (targetSpread / 2),
-      ((point.position[2] - minZ) / rangeZ) * targetSpread - (targetSpread / 2)
+      ((point.position[0] - minX) / rangeX) * spread - (spread / 2),
+      ((point.position[1] - minY) / rangeY) * spread - (spread / 2),
+      ((point.position[2] - minZ) / rangeZ) * spread - (spread / 2)
     ];
-    
-    return {
-      ...point,
-      position: normalizedPosition
-    };
+    return { ...point, position: normalizedPosition };
   });
 }
 
-/**
- * Add jitter to points that would otherwise overlap
- */
-function addJitterToOverlappingPoints(points: MonteCarloDataPoint[]): MonteCarloDataPoint[] {
-  if (points.length <= 1) return points;
-  
-  // Create a map to track positions and count occurrences
+// Utility: Add jitter to overlapping points
+export function addJitterToPoints(points: PointWithCluster[]): PointWithCluster[] {
+  if (!points.length) return points;
   const positionMap = new Map<string, number>();
-  
-  // First pass: count occurrences of each position
   points.forEach(point => {
-    // Create a position key with reduced precision to catch near-overlaps
-    const posKey = [
-      Math.round(point.position[0] * 10) / 10,
-      Math.round(point.position[1] * 10) / 10,
-      Math.round(point.position[2] * 10) / 10
-    ].join(',');
-    
+    const posKey = point.position.join(',');
     positionMap.set(posKey, (positionMap.get(posKey) || 0) + 1);
   });
-  
-  // Define jitter amount based on number of overlapping points
   const getJitterAmount = (count: number) => {
-    if (count <= 1) return 0; // No jitter needed
-    // More points = more jitter
+    if (count <= 1) return 0;
     const baseJitter = 0.2;
     return Math.min(baseJitter * Math.sqrt(count), 0.8);
   };
-  
-  // Apply jitter to points that share positions
   return points.map(point => {
-    // Create a position key with reduced precision
-    const posKey = [
-      Math.round(point.position[0] * 10) / 10,
-      Math.round(point.position[1] * 10) / 10,
-      Math.round(point.position[2] * 10) / 10
-    ].join(',');
-    
+    const posKey = point.position.join(',');
     const count = positionMap.get(posKey) || 0;
-    
-    // No need to add jitter for unique positions
-    if (count <= 1) {
-      return point;
-    }
-    
-    // Apply jitter in all three dimensions
+    if (count <= 1) return point;
     const jitterAmount = getJitterAmount(count);
     const jitteredPosition: [number, number, number] = [
       point.position[0] + (Math.random() * 2 - 1) * jitterAmount,
       point.position[1] + (Math.random() * 2 - 1) * jitterAmount,
       point.position[2] + (Math.random() * 2 - 1) * jitterAmount
     ];
-    
-    return {
-      ...point,
-      position: jitteredPosition
-    };
+    return { ...point, position: jitteredPosition };
   });
 }
 

@@ -6,9 +6,10 @@ import {
   fetchMonteCarloDataForBatch,
   generateClusters,
   generateClusterTitles,
-  PointWithCluster, // Assuming this type alias is needed or defined in the service
+  PointWithCluster,
+  normalizeAndSpreadPoints,
+  addJitterToPoints,
 } from "@/lib/monte-carlo-service"
-import { normalizeAndSpreadPoints, addJitterToPoints } from "../utils"
 
 const DEBUG = process.env.NODE_ENV !== 'production'
 
@@ -103,91 +104,14 @@ export function useMonteCarloData(initialBatchId?: string | null) {
         return { ...point, cluster: cluster?.id }
       })
 
-      if (DEBUG) console.debug(`Generating titles for clusters...`)
-      const clustersWithTitles = await generateClusterTitles(generatedClusters)
-      if (!isMounted.current) return
+      // if (DEBUG) console.debug('Clusters assigned to data points.');
 
-      if (DEBUG) console.debug(`Updating state with ${dataWithClusters.length} points and ${clustersWithTitles.length} clusters`)
-      if (isMounted.current) {
-        setData(dataWithClusters)
-        setClusters(clustersWithTitles)
-      }
+      // if (DEBUG) console.debug(`
     } catch (error) {
-      console.error(`Error fetching data for batch ${value}:`, error)
-      if (isMounted.current) {
-        setData([])
-        setClusters([])
-      }
-    } finally {
+      console.warn("Error processing data:", error)
       if (isMounted.current) setIsLoading(false)
     }
-  }, [fetchBatchIds]) // Dependency on fetchBatchIds is okay here if needed
-
-  // Effect to load data when selectedBatchId changes initially or via handleBatchChange
-  useEffect(() => {
-    if (!selectedBatchId) {
-      // Clear data if no batch is selected
-      setData([])
-      setClusters([])
-      setIsLoading(false) // Set loading to false if no batch is selected
-      return
-    }
-
-    // Use a local mounted flag specific to this effect instance
-    let localMounted = true
-    const loadData = async () => {
-      if (!localMounted) return
-      setIsLoading(true)
-      try {
-        // Fetch Monte Carlo data for the selected batch
-        const { dataPoints } = await fetchMonteCarloDataForBatch(selectedBatchId)
-        if (!localMounted) return
-
-        if (dataPoints.length === 0) {
-          if (DEBUG) console.log(`No data found for batch ${selectedBatchId}, showing empty state`)
-          if (localMounted) {
-            setData([])
-            setClusters([])
-            setIsLoading(false)
-          }
-          return
-        }
-
-        if (DEBUG) console.log(`Loaded ${dataPoints.length} points for 3D visualization`)
-        const spreadPoints = normalizeAndSpreadPoints(dataPoints)
-        const processedPoints = addJitterToPoints(spreadPoints)
-        const generatedClusters = await generateClusters(processedPoints)
-        if (!localMounted) return
-
-        const dataWithClusters: PointWithCluster[] = processedPoints.map((point) => {
-          const cluster = generatedClusters.find((c) => c.points.some((p) => p.id === point.id))
-          return { ...point, cluster: cluster?.id }
-        })
-
-        const clustersWithTitles = await generateClusterTitles(generatedClusters)
-        if (!localMounted) return
-
-        if (localMounted) {
-          setData(dataWithClusters)
-          setClusters(clustersWithTitles)
-        }
-      } catch (error) {
-        console.error("Error loading Monte Carlo data:", error)
-        if (localMounted) {
-          setData([])
-          setClusters([])
-        }
-      } finally {
-        if (localMounted) setIsLoading(false)
-      }
-    }
-
-    loadData()
-
-    return () => {
-      localMounted = false // Cleanup for this specific effect run
-    }
-  }, [selectedBatchId]) // Re-run only when selectedBatchId changes
+  }, [])
 
   return {
     data,
@@ -195,8 +119,7 @@ export function useMonteCarloData(initialBatchId?: string | null) {
     isLoading,
     allBatchIds,
     selectedBatchId,
-    handleBatchChange,
     isFetchingBatches,
-    // Also return setData/setClusters if needed externally, though handleBatchChange covers most cases
+    handleBatchChange,
   }
-} 
+}

@@ -1,26 +1,7 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatBatchId } from '../utils'; // Import from utils
-
-// Format a batch ID to be more readable (Copied/Moved from visualizer)
-const formatBatchId = (batchId: string): string => {
-  const timestampMatch = batchId.match(/batch_(\d+)_/);
-  if (timestampMatch && timestampMatch[1]) {
-    const timestamp = parseInt(timestampMatch[1]);
-    if (!isNaN(timestamp)) {
-      try {
-        const date = new Date(timestamp * 1000);
-        const formattedDate = date.toLocaleString();
-        const uniquePart = batchId.split("_").slice(2).join("_");
-        return `${formattedDate} (${uniquePart})`;
-      } catch (e) {
-        console.error("Error formatting date:", e);
-      }
-    }
-  }
-  return batchId.replace("batch_", "Batch ").replace(/_/g, " ");
-};
+import { formatBatchId } from '@/components/monte-carlo/utils';
 
 interface BatchSelectionPanelProps {
   allBatchIds: string[] | null;
