@@ -8,7 +8,6 @@ interface ConnectionLinesProps {
   point: PointWithCluster | null;
   closestPoints: PointWithCluster[];
   isSelected?: boolean;
-  // selectedClusters prop removed as it's not used for styling lines anymore
 }
 
 export function ConnectionLines({
@@ -18,10 +17,11 @@ export function ConnectionLines({
 }: ConnectionLinesProps) {
   if (!point || closestPoints.length === 0) return null;
 
-  const lineColor = "#f97316"; // Orange for all connections (selected or hovered)
-  const lineWidth = isSelected ? 3 : 2; // Thicker line if the central point is selected
-  const opacity = isSelected ? 1 : 0.7; // More opaque if the central point is selected
-  const renderOrderValue = isSelected ? 20 : 15; // Ensure lines are above points, selected lines are higher
+  // Use orange-500 for user selections (same as in ModelLegend)
+  const lineColor = "#f97316"; // orange-500 
+  const lineWidth = isSelected ? 3 : 2;
+  const opacity = isSelected ? 1 : 0.7;
+  const renderOrderValue = isSelected ? 20 : 15;
 
   return (
     <>
@@ -34,10 +34,8 @@ export function ConnectionLines({
           transparent
           opacity={opacity}
           renderOrder={renderOrderValue}
-          // Optional: Add material props if needed for dashed lines, etc.
-          // material={new THREE.LineBasicMaterial({ color: lineColor, linewidth: lineWidth, transparent: true, opacity: opacity })}
         />
       ))}
     </>
   );
-} 
+}
