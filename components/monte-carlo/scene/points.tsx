@@ -67,7 +67,7 @@ export function Points({
 
     data.forEach((point, i) => {
         // Start with the base model color
-        let finalColor = baseColors[i];
+        const finalColor = baseColors[i];
 
         const isSelected = selectedPoint?.id === point.id;
         const isHovered = hoveredPoint?.id === point.id;
