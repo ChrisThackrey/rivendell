@@ -302,8 +302,8 @@ export function Points({
       >
         {/* Use a slightly smaller sphere for better visual separation */}
         <sphereGeometry args={[0.15, 16, 16]} />
-        {/* Material properties can be fine-tuned */}
-        <meshBasicMaterial vertexColors transparent opacity={0.9} />
+        {/* Material properties simplified for better performance */}
+        <meshBasicMaterial vertexColors={true} />
       </instancedMesh>
 
       {/* Highlight sphere for hovered point */}

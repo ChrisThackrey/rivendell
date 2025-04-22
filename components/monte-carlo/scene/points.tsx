@@ -42,19 +42,37 @@ export function Points({
   // Setup Instanced Mesh Geometry & Base Colors
   useEffect(() => {
     if (!meshRef.current || !data.length) return;
+    
+    // Ensure we have a color attribute buffer with the right size
+    if (!meshRef.current.instanceColor || meshRef.current.instanceColor.count !== data.length) {
+      const colorBuffer = new Float32Array(data.length * 3);
+      meshRef.current.instanceColor = new THREE.InstancedBufferAttribute(colorBuffer, 3);
+    }
+    
+    // Set up positions and colors
     const localTempObj = tempObject;
     data.forEach((point, i) => {
+      // Set position
       localTempObj.position.set(...point.position);
       localTempObj.updateMatrix();
       meshRef.current!.setMatrixAt(i, localTempObj.matrix);
-      meshRef.current!.setColorAt(i, getModelColor(point.model));
+      
+      // Set color based on model
+      const color = getModelColor(point.model);
+      meshRef.current!.setColorAt(i, color);
     });
+    
+    // Update buffers
     meshRef.current.instanceMatrix.needsUpdate = true;
-    if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
+    meshRef.current.instanceColor.needsUpdate = true;
     meshRef.current.count = data.length; // Ensure count matches data length
+    
     // Three.js typing fix - instanceCount doesn't exist in type definitions but works at runtime
     (meshRef.current.geometry as any).instanceCount = data.length; // Required for older three versions
-  }, [data, tempObject]);
+    
+    // Force render
+    invalidate();
+  }, [data, tempObject, invalidate]);
 
   // Update Instance Colors based on state
   useEffect(() => {
@@ -62,13 +80,16 @@ export function Points({
     // Create a temp color object that won't get recreated on each render
     const tempColor = new THREE.Color();
     
+    // Make sure colors are properly initialized
+    if (!meshRef.current.instanceColor) {
+      const colorBuffer = new Float32Array(data.length * 3);
+      meshRef.current.instanceColor = new THREE.InstancedBufferAttribute(colorBuffer, 3);
+    }
+    
     // Store initial model colors to use as base
     const baseColors = data.map(p => getModelColor(p.model));
 
     data.forEach((point, i) => {
-        // Start with the base model color
-        const finalColor = baseColors[i];
-
         const isSelected = selectedPoint?.id === point.id;
         const isHovered = hoveredPoint?.id === point.id;
         const isInSelectedCluster = selectedClusters.includes(point.cluster ?? -1);
@@ -91,7 +112,7 @@ export function Points({
             meshRef.current!.setColorAt(i, tempColor);
         } else {
             // Otherwise, use the base model color (reapply to ensure consistent state)
-            meshRef.current!.setColorAt(i, finalColor);
+            meshRef.current!.setColorAt(i, baseColors[i]);
         }
     });
 
@@ -215,10 +236,9 @@ export function Points({
         onPointerMove={handlePointerMove}
         renderOrder={10} // Default render order
       >
-        <sphereGeometry args={[0.15, 24, 24]} />
-        {/* Use MeshStandardMaterial for better lighting effects if needed, else Basic is fine */}
-        <meshStandardMaterial vertexColors roughness={0.5} metalness={0.1} />
-        {/* <meshBasicMaterial vertexColors transparent={true} alphaTest={0.01} depthWrite={true} depthTest={true} /> */}
+        <sphereGeometry args={[0.15, 16, 16]} />
+        {/* Switched to basic material for better performance and color handling */}
+        <meshBasicMaterial vertexColors={true} />
       </instancedMesh>
 
       {/* Highlight sphere for hovered point */}

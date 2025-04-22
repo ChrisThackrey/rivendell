@@ -25,8 +25,21 @@ export function WebGLContextLostManager() {
     if (!gl?.domElement) return;
     const canvas = gl.domElement;
 
-    const handleContextLost = (event: Event) => { /* ... */ };
-    const handleContextRestored = () => { /* ... */ };
+    const handleContextLost = (event: Event) => {
+      console.log("WebGL context lost detected");
+      event.preventDefault(); // Important: prevent default browser handling
+      setIsContextLost(true);
+      setAttemptCount(0); // Reset attempt count on new context loss
+      clearRecoveryTimers(); // Clear any existing timers
+    };
+    
+    const handleContextRestored = () => {
+      console.log("WebGL context restored");
+      setIsContextLost(false);
+      setAttemptCount(0); // Reset attempt count when context is restored
+      clearRecoveryTimers();
+      invalidate(); // Request a render once context is back
+    };
 
     canvas.addEventListener("webglcontextlost", handleContextLost);
     canvas.addEventListener("webglcontextrestored", handleContextRestored);

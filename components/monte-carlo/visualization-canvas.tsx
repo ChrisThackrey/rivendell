@@ -99,10 +99,26 @@ export const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
           className="absolute inset-0"
           camera={{ position: cameraState.position, fov: 75 }}
           frameloop="demand"
-          gl={{ powerPreference: "high-performance", antialias: true, stencil: false, depth: true, alpha: true }}
-          dpr={dpr}
+          gl={{ 
+            powerPreference: "high-performance", 
+            antialias: true, 
+            stencil: false,
+            depth: true, 
+            alpha: true,
+            preserveDrawingBuffer: true, // Help prevent context loss
+            failIfMajorPerformanceCaveat: false // More forgiving of performance issues
+          }}
+          dpr={Math.min(2, dpr)} // Limit DPR to avoid performance issues
           resize={{ scroll: false }}
-          onCreated={({ invalidate }) => { invalidateRef.current = invalidate; }}
+          onCreated={({ invalidate, gl }) => { 
+            invalidateRef.current = invalidate; 
+            // Set extended context attributes that might help stability
+            const context = gl.getContext();
+            // Disable auto-losing context when tab is out of focus
+            if (context && 'getExtension' in context) {
+              context.getExtension('WEBGL_lose_context_on_hidden');
+            }
+          }}
           style={{ background: "linear-gradient(to bottom, #f8fafc, #f1f5f9)" }}
         >
           <Scene
