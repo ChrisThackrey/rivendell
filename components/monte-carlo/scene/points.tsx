@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { PointWithCluster } from '@/lib/monte-carlo-service';
-import { getModelColor, findClosestPoints, PointDetectionResult } from '../utils'; // Import helper
+import { getModelColor } from '../utils';
 
 interface PointsProps {
   data: PointWithCluster[];
@@ -15,7 +15,7 @@ interface PointsProps {
   setSelectedPoint: (point: PointWithCluster | null) => void;
   selectedClusters: number[];
   isCameraMovingRef: React.RefObject<boolean>;
-  filteredData: PointWithCluster[]; // Needed for direct detection filtering
+  filteredData: PointWithCluster[]; 
 }
 
 export function Points({
@@ -29,229 +29,143 @@ export function Points({
   isCameraMovingRef,
   filteredData,
 }: PointsProps) {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const points = useRef<THREE.Points>(null);
   const highlightRef = useRef<THREE.Mesh>(null);
   const selectionRef = useRef<THREE.Mesh>(null);
   const { raycaster, camera, mouse, invalidate } = useThree();
-  const touchStartTimeRef = useRef<number | null>(null);
-  const touchStartPositionRef = useRef<{ x: number; y: number } | null>(null);
-  const isTapRef = useRef(false);
-  const tempObject = useMemo(() => new THREE.Object3D(), []);
-  const clusterHighlightRefs = useRef<THREE.Mesh[]>([]);
 
-  // Setup Instanced Mesh Geometry & Base Colors
-  useEffect(() => {
-    if (!meshRef.current || !data.length) return;
+  // Create geometries for points
+  const geometry = useMemo(() => {
+    const geo = new THREE.BufferGeometry();
     
-    // Ensure we have a color attribute buffer with the right size
-    if (!meshRef.current.instanceColor || meshRef.current.instanceColor.count !== data.length) {
-      const colorBuffer = new Float32Array(data.length * 3);
-      meshRef.current.instanceColor = new THREE.InstancedBufferAttribute(colorBuffer, 3);
-    }
+    // Create position attribute
+    const positions = new Float32Array(data.length * 3);
+    const colors = new Float32Array(data.length * 3);
     
-    // Set up positions and colors
-    const localTempObj = tempObject;
+    // Create a mapping from point ID to index
+    const pointIdToIndex = new Map();
+    
     data.forEach((point, i) => {
-      // Set position
-      localTempObj.position.set(...point.position);
-      localTempObj.updateMatrix();
-      meshRef.current!.setMatrixAt(i, localTempObj.matrix);
+      // Store positions
+      positions[i * 3] = point.position[0];
+      positions[i * 3 + 1] = point.position[1];
+      positions[i * 3 + 2] = point.position[2];
       
-      // Set color based on model
+      // Store model colors from ModelLegend
       const color = getModelColor(point.model);
-      meshRef.current!.setColorAt(i, color);
+      colors[i * 3] = color.r;
+      colors[i * 3 + 1] = color.g;
+      colors[i * 3 + 2] = color.b;
+      
+      // Store mapping
+      pointIdToIndex.set(point.id, i);
     });
     
-    // Update buffers
-    meshRef.current.instanceMatrix.needsUpdate = true;
-    meshRef.current.instanceColor.needsUpdate = true;
-    meshRef.current.count = data.length; // Ensure count matches data length
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     
-    // Three.js typing fix - instanceCount doesn't exist in type definitions but works at runtime
-    (meshRef.current.geometry as any).instanceCount = data.length; // Required for older three versions
+    // Store reference to the mapping on the geometry itself for easy access
+    (geo as any).pointIdToIndex = pointIdToIndex;
     
-    // Force render
-    invalidate();
-  }, [data, tempObject, invalidate]);
-
-  // Update Instance Colors based on state
-  useEffect(() => {
-    if (!meshRef.current || !data.length) return;
-    // Create a temp color object that won't get recreated on each render
-    const tempColor = new THREE.Color();
-    
-    // Make sure colors are properly initialized
-    if (!meshRef.current.instanceColor) {
-      const colorBuffer = new Float32Array(data.length * 3);
-      meshRef.current.instanceColor = new THREE.InstancedBufferAttribute(colorBuffer, 3);
-    }
-    
-    // Store initial model colors to use as base
-    const baseColors = data.map(p => getModelColor(p.model));
-
-    data.forEach((point, i) => {
-        const isSelected = selectedPoint?.id === point.id;
-        const isHovered = hoveredPoint?.id === point.id;
-        const isInSelectedCluster = selectedClusters.includes(point.cluster ?? -1);
-
-        const closestToSelected = selectedPoint ? findClosestPoints(selectedPoint, data, 4) : [];
-        const isProximalToSelected = closestToSelected.some(p => p.id === point.id);
-
-        const closestToHovered = hoveredPoint ? findClosestPoints(hoveredPoint, data, 4) : [];
-        const isProximalToHovered = closestToHovered.some(p => p.id === point.id);
-
-        // Order of precedence: Selected > Hovered > Cluster Selection
-        if (isSelected || isProximalToSelected) {
-            tempColor.set("#f97316"); // Orange
-            meshRef.current!.setColorAt(i, tempColor);
-        } else if (isHovered || isProximalToHovered) {
-            tempColor.set("#f97316"); // Orange
-            meshRef.current!.setColorAt(i, tempColor);
-        } else if (isInSelectedCluster) {
-            tempColor.set("#4ade80"); // Green
-            meshRef.current!.setColorAt(i, tempColor);
-        } else {
-            // Otherwise, use the base model color (reapply to ensure consistent state)
-            meshRef.current!.setColorAt(i, baseColors[i]);
-        }
+    return geo;
+  }, [data]);
+  
+  // Material for points
+  const material = useMemo(() => {
+    return new THREE.PointsMaterial({
+      size: 0.2,
+      vertexColors: true,
+      sizeAttenuation: true,
     });
+  }, []);
 
-    // Ensure we update the buffer after making changes
-    if (meshRef.current.instanceColor) {
-        meshRef.current.instanceColor.needsUpdate = true;
-    }
-    invalidate();
-  }, [data, hoveredPoint, selectedPoint, selectedClusters, invalidate]);
-
-
-  // Update hover highlight sphere
+  // Handle hover highlight
   useEffect(() => {
-    if (highlightRef.current) {
-      highlightRef.current.visible = !!hoveredPoint;
-      if (hoveredPoint) {
-        highlightRef.current.position.set(...hoveredPoint.position);
-        (highlightRef.current.material as THREE.MeshBasicMaterial).color.set("#f97316"); // Orange
-      }
-      if(hoveredPoint) invalidate();
+    if (highlightRef.current && hoveredPoint) {
+      highlightRef.current.position.set(...hoveredPoint.position);
+      highlightRef.current.visible = true;
+    } else if (highlightRef.current) {
+      highlightRef.current.visible = false;
     }
+    
+    invalidate();
   }, [hoveredPoint, invalidate]);
-
-  // Update selection highlight sphere
+  
+  // Handle selection highlight
   useEffect(() => {
-    if (selectionRef.current) {
-      selectionRef.current.visible = !!selectedPoint;
-      if (selectedPoint) {
-        selectionRef.current.position.set(...selectedPoint.position);
-         (selectionRef.current.material as THREE.MeshBasicMaterial).color.set("#f97316"); // Orange
-      }
-       if(selectedPoint) invalidate();
+    if (selectionRef.current && selectedPoint) {
+      selectionRef.current.position.set(...selectedPoint.position);
+      selectionRef.current.visible = true;
+    } else if (selectionRef.current) {
+      selectionRef.current.visible = false;
     }
+    
+    invalidate();
   }, [selectedPoint, invalidate]);
 
-   // Update cluster highlight spheres
-   useEffect(() => {
-      const geometry = new THREE.SphereGeometry(0.25, 16, 16);
-      const material = new THREE.MeshBasicMaterial({ color: "#4ade80", wireframe: true, transparent: true, opacity: 0.6 });
-
-      clusterHighlightRefs.current.forEach(mesh => mesh.parent?.remove(mesh));
-      clusterHighlightRefs.current = [];
-
-      if (selectedClusters.length > 0 && meshRef.current?.parent) {
-          const parent = meshRef.current.parent;
-          data.filter(point => point.cluster && selectedClusters.includes(point.cluster) && point.id !== selectedPoint?.id)
-              .forEach(point => {
-                  const mesh = new THREE.Mesh(geometry, material);
-                  mesh.position.set(...point.position);
-                  mesh.renderOrder = 11;
-                  parent.add(mesh);
-                  clusterHighlightRefs.current.push(mesh);
-              });
-          invalidate();
-      }
-
-      return () => {
-         clusterHighlightRefs.current.forEach(mesh => mesh.parent?.remove(mesh));
-         geometry.dispose();
-         material.dispose();
-      };
-   }, [selectedClusters, data, selectedPoint, invalidate]);
-
-
-  // Hover detection frame loop
+  // Handle raycasting for hover
   useFrame(() => {
-     if (!meshRef.current || (isCameraMovingRef.current && (selectedPoint || selectedClusters.length > 0))) return;
-
-     raycaster.params.Points.threshold = 0.8;
-     raycaster.setFromCamera(mouse, camera);
-     const intersects = raycaster.intersectObject(meshRef.current, false); // Don't intersect children
-
-     let foundInstanceId: number | undefined = undefined;
-     if (intersects.length > 0 && intersects[0].instanceId !== undefined) {
-         foundInstanceId = intersects[0].instanceId;
-     } else {
-        // Direct detection if no intersection
-         const pointPositions = data.map(p => new THREE.Vector3(...p.position));
-         let closestPoint: PointDetectionResult | null = null;
-         const ray = raycaster.ray;
-
-         pointPositions.forEach((position, index) => {
-             if (filteredData.length !== data.length && !filteredData.some(p => p.id === data[index].id)) return; // Check filter
-             const closestPointOnRay = new THREE.Vector3();
-             ray.closestPointToPoint(position, closestPointOnRay);
-             const distance = position.distanceTo(closestPointOnRay);
-             if (distance < 0.6 && (!closestPoint || distance < closestPoint.distance)) {
-                 closestPoint = { index, distance };
-             }
-         });
-         if(closestPoint) foundInstanceId = (closestPoint as PointDetectionResult).index;
-     }
-
-     const currentHoverId = hoveredPoint?.id;
-     let nextHoveredPoint: PointWithCluster | null = null;
-     if (foundInstanceId !== undefined && foundInstanceId < data.length) {
-         nextHoveredPoint = data[foundInstanceId];
-     }
-
-     if (currentHoverId !== nextHoveredPoint?.id) {
-         setHoveredPoint(nextHoveredPoint);
-         setClosestPoints(nextHoveredPoint ? findClosestPoints(nextHoveredPoint, data, 4) : []);
-     }
+    if (!points.current || isCameraMovingRef.current) return;
+    
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObject(points.current);
+    
+    if (intersects.length > 0) {
+      const index = intersects[0].index;
+      if (index !== undefined && index < data.length) {
+        const point = data[index];
+        if (hoveredPoint?.id !== point.id) {
+          setHoveredPoint(point);
+        }
+      }
+    } else if (hoveredPoint) {
+      setHoveredPoint(null);
+    }
   });
 
-  // --- Pointer Handlers (Simplified for brevity, keep original logic) ---
-  const selectPointFromRaycast = useCallback(() => {/* ... original logic using raycaster/direct detection ... */}, [/* deps */]);
-  const handlePointerDown = useCallback((e: any) => { e.stopPropagation(); /* ... original logic ... */ }, [/* deps */]);
-  const handlePointerUp = useCallback((e: any) => { /* ... original logic ... */ }, [/* deps */]);
-  const handlePointerMove = useCallback((e: any) => { /* ... original logic ... */ }, [/* deps */]);
-
+  // Handle click to select
+  const handleClick = (event: THREE.Event) => {
+    if (!points.current) return;
+    
+    event.stopPropagation();
+    
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObject(points.current);
+    
+    if (intersects.length > 0) {
+      const index = intersects[0].index;
+      if (index !== undefined && index < data.length) {
+        const point = data[index];
+        // Check if in filtered data
+        if (filteredData.some(p => p.id === point.id)) {
+          setSelectedPoint(point);
+        }
+      }
+    } else {
+      setSelectedPoint(null);
+    }
+  };
 
   return (
-    <>
-      <instancedMesh
-        ref={meshRef}
-        args={[undefined, undefined, data.length]} // Ensure args match data length
-        frustumCulled={false}
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerMove={handlePointerMove}
-        renderOrder={10} // Default render order
-      >
-        <sphereGeometry args={[0.15, 16, 16]} />
-        {/* Switched to basic material for better performance and color handling */}
-        <meshBasicMaterial vertexColors={true} />
-      </instancedMesh>
-
-      {/* Highlight sphere for hovered point */}
+    <group>
+      <points 
+        ref={points} 
+        geometry={geometry} 
+        material={material}
+        onClick={handleClick}
+      />
+      
+      {/* Highlight sphere for hover */}
       <mesh ref={highlightRef} visible={false} renderOrder={101}>
-        <sphereGeometry args={[0.25, 32, 32]} />
-        <meshBasicMaterial color="#f97316" transparent={true} opacity={0.6} />
+        <sphereGeometry args={[0.2, 16, 16]} />
+        <meshBasicMaterial color="#f97316" wireframe />
       </mesh>
-
-      {/* Selection sphere for selected point */}
+      
+      {/* Highlight sphere for selection */}
       <mesh ref={selectionRef} visible={false} renderOrder={102}>
-        <sphereGeometry args={[0.15, 32, 32]} />
-        <meshBasicMaterial color="#f97316" wireframe={true} transparent={true} opacity={1} />
+        <sphereGeometry args={[0.2, 16, 16]} />
+        <meshBasicMaterial color="#f97316" wireframe={true} />
       </mesh>
-    </>
+    </group>
   );
-} 
+}

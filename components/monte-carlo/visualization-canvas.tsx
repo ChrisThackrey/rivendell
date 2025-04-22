@@ -1,12 +1,11 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Button } from '@/components/ui/button';
 import { Loader2, Focus } from 'lucide-react';
-import { ModelLegend } from './ModelLegend'; // Import with correct capitalized filename
+import { ModelLegend } from './ModelLegend';
 import { Scene } from './scene/scene';
-import { WebGLContextLostManager } from './scene/webgl-context-lost-manager';
 import type { PointWithCluster } from '@/lib/monte-carlo-service';
 import type { MonteCarloCluster } from '@/lib/monte-carlo-service';
 
@@ -33,8 +32,8 @@ interface VisualizationCanvasProps {
   isCameraMovingRef: React.RefObject<boolean>;
 
   // UI Overlay Props
-  isLoading: boolean; // General loading state for overlay
-  showLoadingOverlay: boolean; // Specific state for overlay visibility
+  isLoading: boolean;
+  showLoadingOverlay: boolean;
   selectedModelFilter: string | null;
   setSelectedModelFilter: (filter: string | null) => void;
   onFocusCamera: () => void;
@@ -42,7 +41,7 @@ interface VisualizationCanvasProps {
   // Canvas Props
   dpr: number;
   invalidateRef: React.MutableRefObject<(() => void) | null>;
-  canvasKey: string; // Key to force re-mount, e.g., based on selectedBatchId
+  canvasKey: string;
 }
 
 export const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
@@ -57,14 +56,16 @@ export const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
   // Canvas Props
   dpr, invalidateRef, canvasKey,
 }) => {
-
-  const modelColorNames: Record<string, string> = { // Define locally or import
-    "gpt-4": "GPT-4o",
-    claude: "Claude",
-    o1: "o1",
-    o3: "o3-mini",
-    other: "Other",
-  };
+  const [canvasRendered, setCanvasRendered] = useState(false);
+  
+  // Force a remount of the Canvas component when selectedBatchId changes
+  useEffect(() => {
+    setCanvasRendered(false);
+    const timer = setTimeout(() => {
+      setCanvasRendered(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [selectedBatchId]);
 
   return (
     <div className="relative w-full h-full overflow-hidden">
@@ -78,7 +79,7 @@ export const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
       {/* Controls positioned over the canvas */}
       <div className="absolute top-2 left-2 z-40 flex gap-2">
         {/* Focus button */}
-        {(data.length > 0 || clusters.length > 0) && ( // Show only if there's data/clusters
+        {(data.length > 0 || clusters.length > 0) && (
           <Button variant="outline" size="sm" onClick={onFocusCamera} title="Focus camera">
             <Focus className="h-3 w-3 mr-1" /> Focus
           </Button>
@@ -92,32 +93,24 @@ export const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
       </div>
 
       {/* Canvas */}
-      {/* Render canvas conditionally based on whether data is loaded for the selected batch */}
-      {(data.length > 0 || (!isLoading && selectedBatchId)) ? (
+      {(data.length > 0 || (!isLoading && selectedBatchId)) && canvasRendered ? (
         <Canvas
-          key={canvasKey} // Use key to ensure canvas re-mounts on batch change
+          key={`monte-carlo-canvas-${canvasKey}`}
           className="absolute inset-0"
           camera={{ position: cameraState.position, fov: 75 }}
           frameloop="demand"
-          gl={{ 
-            powerPreference: "high-performance", 
-            antialias: true, 
-            stencil: false,
-            depth: true, 
+          gl={{
+            powerPreference: "default",
+            antialias: true,
             alpha: true,
-            preserveDrawingBuffer: true, // Help prevent context loss
-            failIfMajorPerformanceCaveat: false // More forgiving of performance issues
+            depth: true,
+            stencil: false,
+            preserveDrawingBuffer: true,
           }}
-          dpr={Math.min(2, dpr)} // Limit DPR to avoid performance issues
+          dpr={1} // Use lower DPR for better performance
           resize={{ scroll: false }}
-          onCreated={({ invalidate, gl }) => { 
-            invalidateRef.current = invalidate; 
-            // Set extended context attributes that might help stability
-            const context = gl.getContext();
-            // Disable auto-losing context when tab is out of focus
-            if (context && 'getExtension' in context) {
-              context.getExtension('WEBGL_lose_context_on_hidden');
-            }
+          onCreated={({ invalidate }) => {
+            invalidateRef.current = invalidate;
           }}
           style={{ background: "linear-gradient(to bottom, #f8fafc, #f1f5f9)" }}
         >
@@ -132,7 +125,6 @@ export const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
             setSelectedPoint={setSelectedPoint}
             selectedClosestPoints={selectedClosestPoints}
             selectedClusters={selectedClusters}
-            // setSelectedClusters prop removed from Scene props
             toggleClusterSelection={toggleClusterSelection}
             selectedBatchId={selectedBatchId}
             filteredData={filteredData}
@@ -141,7 +133,6 @@ export const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
             onCameraChange={onCameraChange}
             isCameraMovingRef={isCameraMovingRef}
           />
-          <WebGLContextLostManager />
         </Canvas>
       ) : (!selectedBatchId && !isLoading) ? (
         // Message when no batch is selected
@@ -151,15 +142,15 @@ export const VisualizationCanvas: React.FC<VisualizationCanvasProps> = ({
       ) : null /* Loading handled by overlay */}
 
       {/* Model Legend */}
-      {(data.length > 0 || clusters.length > 0) && ( // Show legend only if there's data/clusters
+      {(data.length > 0 || clusters.length > 0) && (
         <div className="absolute bottom-4 left-4 z-40">
           <ModelLegend
             selectedModelFilter={selectedModelFilter}
             onModelFilterChange={setSelectedModelFilter}
-            data={data} // Pass raw data for counts
+            data={data}
           />
         </div>
       )}
     </div>
   );
-}; 
+};
