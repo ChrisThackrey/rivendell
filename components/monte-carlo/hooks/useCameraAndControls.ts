@@ -105,19 +105,29 @@ export function useCameraAndControls(
 
     setCameraState({ position: newPosition, target: newTarget })
 
-    // Directly update controls target for immediate effect
-    controlsRef.current.target.set(...newTarget)
-    controlsRef.current.update()
+    // Create temporary vector for better control over camera position changes
+    if (controlsRef.current && controlsRef.current.object) {
+      const camera = controlsRef.current.object;
+      // Update target
+      controlsRef.current.target.set(...newTarget);
+      
+      // Update camera position 
+      camera.position.set(...newPosition);
+      
+      // Update controls
+      controlsRef.current.update();
+      
+      // Force re-render if invalidate function is available
+      if (invalidateRef.current) {
+        invalidateRef.current();
+      }
+    }
 
     // Keep selection persistent after focusing
     setPreventAutoDeselect(true)
-    setTimeout(() => {
-      // Allow auto-deselection again after focus settles, *only if nothing is selected*
-      // We need to know the selection state here, which complicates the hook separation.
-      // For now, let's keep preventAutoDeselect true after focus.
-      // This might need adjustment based on interaction with useVisualizationState.
-      // setPreventAutoDeselect(false); // Re-enable auto deselect after timeout?
-    }, 2000)
+    
+    // Log action for debugging
+    console.log("Camera focused on points, new target:", newTarget, "position:", newPosition);
 
   }, [controlsRef]) // Dependency on controlsRef ensures it's available
 
@@ -125,20 +135,32 @@ export function useCameraAndControls(
   useEffect(() => {
     const interval = setInterval(() => {
       if (isCameraMovingRecently()) {
+        // Still moving
         setPreventAutoDeselect(true)
+        isCameraMovingRef.current = true
       } else if (isCameraMovingRef.current) {
+        // Just stopped moving
+        console.log("Camera movement stopped - resetting movement flag");
         isCameraMovingRef.current = false
-        // Keep preventAutoDeselect = true if something is selected (external state needed here)
-        // For simplicity, we might just leave it true or require external state input.
-        // setPreventAutoDeselect(false); // Only set false if nothing selected externally
-
+        
+        // Force immediate update after movement stops
         if (invalidateRef.current) {
+          // Trigger two renders to ensure proper visual update
           invalidateRef.current()
+          // Schedule another update after a small delay to ensure complete visual refresh
+          setTimeout(() => {
+            if (invalidateRef.current) {
+              invalidateRef.current()
+            }
+          }, 50)
         }
+        
+        // Keep preventAutoDeselect true to preserve selections
+        // Only reset the camera movement flag to re-enable interaction
       }
-    }, 100)
+    }, 50) // Shorter interval for more responsive updates
     return () => clearInterval(interval)
-  }, [isCameraMovingRecently, invalidateRef]) // Removed selectedPoint/Cluster dependencies
+  }, [isCameraMovingRecently, invalidateRef])
 
 
   return {

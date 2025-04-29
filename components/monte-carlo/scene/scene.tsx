@@ -45,6 +45,40 @@ export const Scene = React.memo(function Scene({
       controlsRef.current.update();
     }
   }, [cameraState.target, controlsRef]);
+  
+  // Debug logging for camera movement
+  useEffect(() => {
+    console.log("Scene component mounted - camera control setup");
+    
+    // Add a global debug function
+    if (typeof window !== 'undefined') {
+      (window as any).__debugMonteCarloSelection = () => {
+        console.log({
+          selectedPoint: selectedPoint ? {
+            id: selectedPoint.id,
+            model: selectedPoint.model
+          } : null,
+          hoveredPoint: hoveredPoint ? {
+            id: hoveredPoint.id,
+            model: hoveredPoint.model
+          } : null,
+          isCameraMoving: isCameraMovingRef.current,
+          filteredDataCount: filteredData.length,
+          totalDataPoints: data.length,
+          closestPointsCount: closestPoints.length
+        });
+      };
+    }
+    
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete (window as any).__debugMonteCarloSelection;
+      }
+    };
+  }, [
+    data, hoveredPoint, selectedPoint, closestPoints, 
+    filteredData, isCameraMovingRef
+  ]);
 
   return (
     <>
@@ -90,12 +124,21 @@ export const Scene = React.memo(function Scene({
         />
       )}
       
-      {/* Connection lines for selected point (simplified) */}
+      {/* Connection lines for selected point */}
       {selectedPoint && selectedClosestPoints.length > 0 && (
         <ConnectionLines
           point={selectedPoint}
-          closestPoints={selectedClosestPoints.slice(0, 3)} // Limit for performance
+          closestPoints={selectedClosestPoints}
           isSelected={true}
+        />
+      )}
+      
+      {/* Connection lines for hovered point */}
+      {hoveredPoint && closestPoints.length > 0 && hoveredPoint.id !== selectedPoint?.id && (
+        <ConnectionLines
+          point={hoveredPoint}
+          closestPoints={closestPoints}
+          isSelected={false}
         />
       )}
       
@@ -109,6 +152,8 @@ export const Scene = React.memo(function Scene({
         touches={{ ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN }}
         minDistance={2}
         maxDistance={100}
+        // Use standard props only
+        makeDefault={true}
       />
     </>
   );

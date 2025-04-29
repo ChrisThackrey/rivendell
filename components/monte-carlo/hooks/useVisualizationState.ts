@@ -82,10 +82,16 @@ export function useVisualizationState(
 
   // Handler for selecting a point (e.g., from DetailCard)
   const handleSelectPoint = useCallback((point: PointWithCluster) => {
+    // If we're selecting the same point that's already selected, keep the selection state
+    // This prevents toggling off selection when clicking "Select This Run" on the current point
+    if (selectedPoint?.id === point.id) {
+      return; // Do nothing if it's already the selected point
+    }
+    
     setSelectedPoint(point)
     // Don't automatically select the cluster - focus only on the point
     setSelectedClusters([]) // Clear cluster selection when a specific point is chosen
-  }, [])
+  }, [selectedPoint])
 
   // Add key press event listener for Esc key
   useEffect(() => {

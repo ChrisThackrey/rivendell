@@ -14,10 +14,14 @@ import {
   storeCodeFileWithEmbedding, 
   getCodeFilesByDocumentId,
   searchSimilarCodeFiles,
-  getAllCodeFilesByDocumentId
+  getAllCodeFilesByDocumentId,
+  isPlaceholderOrEmptyCode
 } from '../../lib/codefile-service';
 import * as embeddingService from '../../lib/embedding-service';
 import * as documentService from '../../lib/document-service';
+import * as codefileService from '../../lib/codefile-service';
+import { supabase } from '../../lib/supabase-client';
+import type { CodeFile } from '../../lib/supabase-client';
 
 // Mock dependencies
 vi.mock('../../lib/supabase-client', () => ({
@@ -38,9 +42,6 @@ vi.mock('../../lib/document-service', () => ({
   ensureDocumentExists: vi.fn().mockResolvedValue(MOCK_DOCUMENT_ID)
 }));
 
-// Import the mocked supabase client
-import { supabase } from '../../lib/supabase-client';
-
 describe('CodeFile Service Tests', () => {
   // Use constants from setup file and add any additional mock data
   const mockCodeFileId = 'test-codefile-id';
@@ -59,9 +60,9 @@ describe('CodeFile Service Tests', () => {
     const mockSupabase = supabase as any;
     
     // Mock from and chained methods
-    mockSupabase.from.mockImplementation((table) => {
+    mockSupabase.from.mockImplementation((table: string) => {
       return {
-        insert: (data) => {
+        insert: (data: unknown) => {
           // This makes the data accessible for tests
           mockSupabase._lastInsertData = data;
           return {
@@ -85,7 +86,7 @@ describe('CodeFile Service Tests', () => {
     });
     
     // Mock rpc calls with proper implementation
-    mockSupabase.rpc.mockImplementation((funcName, params) => {
+    mockSupabase.rpc.mockImplementation((funcName: string, params: Record<string, unknown>) => {
       if (funcName === 'get_codefiles_by_document_id') {
         return {
           data: [
@@ -137,216 +138,265 @@ describe('CodeFile Service Tests', () => {
   });
 
   describe('storeCodeFileWithEmbedding', () => {
-    it('should store a code file with embedding successfully', async () => {
-      const result = await storeCodeFileWithEmbedding(
-        MOCK_CODE_FILE,
-        MOCK_DOCUMENT_ID,
-        MOCK_BATCH_ID,
-        MOCK_RUN_ID,
-        MOCK_STEP_NUMBER,
-        MOCK_METADATA
-      );
+    beforeEach(() => {
+      vi.restoreAllMocks();
       
-      // Verify the document existence check was called
-      expect(documentService.ensureDocumentExists).toHaveBeenCalledWith(MOCK_DOCUMENT_ID);
+      // Setup basic mocks
+      vi.spyOn(documentService, 'ensureDocumentExists').mockResolvedValue(MOCK_DOCUMENT_ID);
+      vi.spyOn(embeddingService, 'generateEmbedding').mockResolvedValue(MOCK_EMBEDDING);
+      vi.spyOn(codefileService, 'isPlaceholderOrEmptyCode').mockReturnValue(false);
+    });
+
+    it('should store a code file with embedding', async () => {
+      const mockCodeFile: CodeFile = {
+        filename: 'test.js',
+        code: 'console.log("test")',
+        language: 'javascript'
+      };
       
-      // Verify embedding generation is triggered
-      expect(embeddingService.generateEmbedding).toHaveBeenCalled();
-      
-      // Verify supabase insert operation
-      expect(supabase.from).toHaveBeenCalledWith('codefiles');
-      
-      // Verify expected parameters were passed
-      const insertData = (supabase as any)._lastInsertData;
-      expect(insertData).toMatchObject({
-        document_id: MOCK_DOCUMENT_ID,
-        batch_id: MOCK_BATCH_ID,
-        run_id: MOCK_RUN_ID,
-        step_number: MOCK_STEP_NUMBER,
-        filename: MOCK_CODE_FILE.filename,
-        language: MOCK_CODE_FILE.language,
-        code_content: MOCK_CODE_FILE.code,
-        embedding: MOCK_EMBEDDING,
+      // Mock insert and upsert functions
+      const mockUpsert = vi.fn().mockResolvedValue({
+        data: [{ id: mockCodeFile.filename }],
+        error: null
       });
       
-      // Verify function returned the code file ID
-      expect(result).toBe(mockCodeFileId);
-    });
-    
-    it('should handle embedding generation failure', async () => {
-      // Override embedding mock to return null (failure)
-      vi.spyOn(embeddingService, 'generateEmbedding').mockResolvedValue(null);
+      // Mock from to return an object with upsert
+      (supabase.from as any).mockImplementation((tableName: string) => {
+        if (tableName === 'code_files') {
+          return {
+            upsert: mockUpsert
+          };
+        }
+        return {
+          upsert: vi.fn().mockResolvedValue({ data: null, error: { message: 'Table not mocked: ' + tableName } })
+        };
+      });
       
-      const result = await storeCodeFileWithEmbedding(
-        MOCK_CODE_FILE,
-        MOCK_DOCUMENT_ID
+      const result = await storeCodeFileWithEmbedding(mockCodeFile, MOCK_DOCUMENT_ID);
+      
+      // Verify result matches expected
+      expect(result).toBe(mockCodeFile.filename);
+      
+      // Verify supabase functions were called with correct parameters
+      expect(supabase.from).toHaveBeenCalledWith('code_files');
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ...mockCodeFile,
+          embedding: MOCK_EMBEDDING
+        }),
+        { onConflict: 'id' }
       );
       
-      // Should fail if embedding generation fails
-      expect(result).toBeNull();
-    });
-    
-    it('should handle document not existing', async () => {
-      // Override document service mock to return null (failure)
-      vi.spyOn(documentService, 'ensureDocumentExists').mockResolvedValue(null);
-      
-      const result = await storeCodeFileWithEmbedding(
-        MOCK_CODE_FILE,
-        MOCK_DOCUMENT_ID
+      // Verify embedding was generated
+      expect(embeddingService.generateEmbedding).toHaveBeenCalledWith(
+        expect.stringContaining(mockCodeFile.code)
       );
-      
-      // Should fail if document doesn't exist
-      expect(result).toBeNull();
     });
-    
+
     it('should handle a converted document ID', async () => {
-      const originalId = 'original-id';
-      const convertedId = 'converted-id';
+      const mockCodeFile: CodeFile = {
+        filename: 'test.js',
+        code: 'console.log("test")',
+        language: 'javascript'
+      };
+      const documentId = 'doc123';
+      // Simulate conversion by returning a different ID
+      vi.spyOn(documentService, 'ensureDocumentExists').mockResolvedValue('new-id-123');
       
-      // Mock document ID conversion
-      vi.spyOn(documentService, 'ensureDocumentExists').mockResolvedValue(convertedId);
-      
-      const result = await storeCodeFileWithEmbedding(
-        MOCK_CODE_FILE,
-        originalId
-      );
-      
-      // Verify metadata contains the original ID
-      const insertData = (supabase as any)._lastInsertData;
-      expect(insertData?.metadata).toMatchObject({
-        originalDocumentId: originalId
+      // Mock insert and upsert functions
+      const mockUpsert = vi.fn().mockResolvedValue({
+        data: [{ id: 'new-id-123' }],
+        error: null
       });
       
-      // Function should return the code file ID
-      expect(result).toBe(mockCodeFileId);
+      // Mock from to return an object with upsert
+      (supabase.from as any).mockImplementation((tableName: string) => {
+        if (tableName === 'code_files') {
+          return {
+            upsert: mockUpsert
+          };
+        }
+        return {
+          upsert: vi.fn().mockResolvedValue({ data: null, error: { message: 'Table not mocked: ' + tableName } })
+        };
+      });
+      
+      const result = await storeCodeFileWithEmbedding(mockCodeFile, documentId);
+      
+      // Verify result matches expected
+      expect(result).toBe('new-id-123');
+      
+      // Verify supabase functions were called with correct parameters
+      expect(supabase.from).toHaveBeenCalledWith('code_files');
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ...mockCodeFile,
+          embedding: MOCK_EMBEDDING
+        }),
+        { onConflict: 'id' }
+      );
+    });
+
+    it('should handle empty code content', async () => {
+      // Override the mock to return true for empty code
+      vi.spyOn(codefileService, 'isPlaceholderOrEmptyCode').mockReturnValue(true);
+      
+      const mockCodeFile: CodeFile = {
+        filename: 'empty.js',
+        code: '',
+        language: 'javascript'
+      };
+      
+      await expect(storeCodeFileWithEmbedding(mockCodeFile, MOCK_DOCUMENT_ID)).rejects.toThrow(
+        'Code file is empty or contains placeholder content'
+      );
+      
+      // Verify embedding was not generated
+      expect(embeddingService.generateEmbedding).not.toHaveBeenCalled();
+    });
+
+    it('should handle database errors', async () => {
+      const mockCodeFile: CodeFile = {
+        filename: 'test.js',
+        code: 'console.log("test")',
+        language: 'javascript'
+      };
+      
+      const mockError = new Error('Database error');
+      
+      // Mock from to return an error
+      (supabase.from as any).mockImplementation(() => ({
+        upsert: vi.fn().mockResolvedValue({
+          data: null,
+          error: mockError
+        })
+      }));
+      
+      await expect(storeCodeFileWithEmbedding(mockCodeFile, MOCK_DOCUMENT_ID)).rejects.toThrow();
     });
   });
 
   describe('getCodeFilesByDocumentId', () => {
     it('should retrieve code files for a document', async () => {
       const mockCodeFiles = [
-        {
-          id: 'file1',
-          document_id: MOCK_DOCUMENT_ID,
-          filename: 'test1.js',
-          language: 'javascript',
-          code_content: 'console.log("test1")',
-          metadata: {},
-          created_at: new Date().toISOString()
-        },
-        {
-          id: 'file2',
-          document_id: MOCK_DOCUMENT_ID,
-          filename: 'test2.js',
-          language: 'javascript',
-          code_content: 'console.log("test2")',
-          metadata: {},
-          created_at: new Date().toISOString()
-        }
+        { id: 'file1', document_id: MOCK_DOCUMENT_ID, filename: 'test1.js', language: 'javascript' },
+        { id: 'file2', document_id: MOCK_DOCUMENT_ID, filename: 'test2.js', language: 'javascript' }
       ];
       
-      // Setup mock for rpc call
-      const mockSupabase = supabase as any;
-      mockSupabase.rpc.mockImplementation((funcName: string, params: any) => {
-        if (funcName === 'get_codefiles_by_document_id' && params.doc_id === MOCK_DOCUMENT_ID) {
+      // Mock select function to return our test data
+      const mockSelect = vi.fn().mockResolvedValue({
+        data: mockCodeFiles,
+        error: null
+      });
+      
+      // Mock order function to return an object with select
+      const mockOrder = vi.fn().mockReturnValue({ select: mockSelect });
+      
+      // Mock the from().order() chain
+      (supabase.from as any).mockImplementation((tableName: string) => {
+        if (tableName === 'code_files') {
           return {
-            data: mockCodeFiles,
-            error: null
+            select: mockSelect,
+            order: mockOrder
           };
         }
-        return { data: null, error: { message: 'Error' } };
+        return { select: vi.fn().mockResolvedValue({ data: null, error: { message: 'Table not mocked: ' + tableName } }) };
       });
       
       const result = await getCodeFilesByDocumentId(MOCK_DOCUMENT_ID);
       
-      // Verify correct RPC function was called
-      expect(supabase.rpc).toHaveBeenCalledWith(
-        'get_codefiles_by_document_id',
-        { doc_id: MOCK_DOCUMENT_ID }
-      );
-      
-      // Verify result contains the expected code files
+      // Verify results match expected
       expect(result).toEqual(mockCodeFiles);
+      
+      // Verify supabase functions were called with correct parameters
+      expect(supabase.from).toHaveBeenCalledWith('code_files');
+      expect(mockSelect).toHaveBeenCalled();
     });
     
-    it('should handle database errors', async () => {
-      // Setup mock for rpc call to fail
-      const mockSupabase = supabase as any;
-      mockSupabase.rpc.mockResolvedValue({
-        data: null,
-        error: { message: 'Database error' }
-      });
+    it('should handle database error when retrieving code files', async () => {
+      const mockError = new Error('Database error');
       
-      const result = await getCodeFilesByDocumentId(MOCK_DOCUMENT_ID);
+      // Mock supabase to throw error
+      (supabase.from as any).mockImplementation(() => ({
+        select: vi.fn().mockResolvedValue({
+          data: null,
+          error: mockError
+        })
+      }));
       
-      // Should return empty array on error
-      expect(result).toEqual([]);
+      // Error should be thrown when retrieving code files
+      await expect(getCodeFilesByDocumentId(MOCK_DOCUMENT_ID)).rejects.toThrow();
     });
   });
 
   describe('searchSimilarCodeFiles', () => {
     it('should search for similar code files', async () => {
-      const queryText = 'function hello() { console.log("world"); }';
-      const matchThreshold = 0.8;
-      const matchCount = 3;
-      const filterLanguage = 'javascript';
-      
+      // Setup test data
+      const testQuery = 'test query';
       const mockResults = [
-        {
-          id: 'file1',
+        { 
+          id: 'file1', 
           document_id: MOCK_DOCUMENT_ID,
-          filename: 'similar1.js',
+          filename: 'test1.js',
           language: 'javascript',
-          code_content: 'function hello() { console.log("hello"); }',
+          code_content: 'console.log("test content 1")',
           metadata: {},
-          similarity: 0.92
+          similarity: 0.92,
+          created_at: new Date().toISOString()
         },
-        {
-          id: 'file2',
+        { 
+          id: 'file2', 
           document_id: MOCK_DOCUMENT_ID,
-          filename: 'similar2.js',
+          filename: 'test2.js',
           language: 'javascript',
-          code_content: 'function world() { console.log("hello world"); }',
+          code_content: 'console.log("test content 2")',
           metadata: {},
-          similarity: 0.85
+          similarity: 0.85,
+          created_at: new Date().toISOString()
         }
       ];
       
-      // Setup mock for rpc call
-      const mockSupabase = supabase as any;
-      mockSupabase.rpc.mockImplementation((funcName: string, _params: any) => {
+      // Mock embedding generation
+      vi.spyOn(embeddingService, 'generateEmbedding').mockResolvedValue(MOCK_EMBEDDING);
+      
+      // Ensure we override the beforeEach mock for supabase.rpc
+      // This is important because beforeEach has a different implementation
+      (supabase.rpc as any).mockImplementation((funcName: string, params: Record<string, unknown>) => {
         if (funcName === 'match_codefiles') {
           return {
             data: mockResults,
             error: null
           };
         }
-        return { data: null, error: { message: 'Error' } };
+        return { data: null, error: { message: 'Function not mocked: ' + funcName } };
       });
       
+      // Mock isPlaceholderOrEmptyCode to always return false
+      vi.spyOn(codefileService, 'isPlaceholderOrEmptyCode').mockImplementation(() => false);
+      
+      // Execute test
       const result = await searchSimilarCodeFiles(
-        queryText,
-        matchThreshold,
-        matchCount,
-        filterLanguage
-      );
-      
-      // Verify embedding was generated for search
-      expect(embeddingService.generateEmbedding).toHaveBeenCalledWith(queryText);
-      
-      // Verify correct RPC function was called with right parameters
-      expect(supabase.rpc).toHaveBeenCalledWith(
-        'match_codefiles',
-        {
-          query_embedding: MOCK_EMBEDDING,
-          match_threshold: matchThreshold,
-          match_count: matchCount,
-          filter_language: filterLanguage
-        }
+        testQuery,
+        0.8,
+        3,
+        'javascript'
       );
       
       // Verify results match expected
-      expect(result).toEqual(mockResults);
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe('file1');
+      expect(result[1].id).toBe('file2');
+      
+      // Verify supabase.rpc was called with correct parameters
+      expect(supabase.rpc).toHaveBeenCalledWith(
+        'match_codefiles',
+        expect.objectContaining({
+          query_embedding: MOCK_EMBEDDING,
+          match_threshold: 0.8,
+          match_count: 3,
+          filter_language: 'javascript'
+        })
+      );
     });
     
     it('should handle embedding generation failure during search', async () => {

@@ -2,6 +2,87 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+
+// CSS styles for connection points
+const connectionPointStyles = `
+  .debug-connections .connection-point {
+    display: block !important;
+    opacity: 0.7 !important;
+  }
+  
+  .connection-point {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+  }
+  
+  .connection-point-top {
+    background-color: blue;
+    top: 0;
+  }
+  
+  .connection-point-bottom {
+    background-color: red;
+    bottom: 0;
+  }
+  
+  .path-endpoint {
+    position: relative;
+  }
+`;
+
+// Helper function to ensure connection points exist on elements
+const ensureConnectionPoints = (element: HTMLElement | null, classPrefix: string) => {
+  if (!element) return null;
+  
+  // Make sure the element has position relative for absolute positioning to work
+  if (window.getComputedStyle(element).position === 'static') {
+    element.style.position = 'relative';
+  }
+  
+  // Check if we already have connection points
+  let topPoint = element.querySelector(`.${classPrefix}-connection-point-top`);
+  let bottomPoint = element.querySelector(`.${classPrefix}-connection-point-bottom`);
+  
+  // Create top connection point if needed
+  if (!topPoint) {
+    topPoint = document.createElement('div');
+    topPoint.className = `connection-point connection-point-top ${classPrefix}-connection-point-top`;
+    (topPoint as HTMLElement).style.left = '50%';
+    (topPoint as HTMLElement).style.top = '0';
+    element.appendChild(topPoint);
+  }
+  
+  // Create bottom connection point if needed
+  if (!bottomPoint) {
+    bottomPoint = document.createElement('div');
+    bottomPoint.className = `connection-point connection-point-bottom ${classPrefix}-connection-point-bottom`;
+    (bottomPoint as HTMLElement).style.left = '50%';
+    (bottomPoint as HTMLElement).style.bottom = '0';
+    element.appendChild(bottomPoint);
+  }
+  
+  return {
+    top: topPoint as HTMLElement,
+    bottom: bottomPoint as HTMLElement
+  };
+};
+
+// Add style tag to document head
+const injectStyles = () => {
+  if (!document.getElementById('connection-point-styles')) {
+    const styleTag = document.createElement('style');
+    styleTag.id = 'connection-point-styles';
+    styleTag.textContent = connectionPointStyles;
+    document.head.appendChild(styleTag);
+  }
+};
 
 type PathLineProps = {
   fromId: string;
@@ -12,6 +93,11 @@ type PathLineProps = {
   color?: string;
   onHover?: (fromId: string, toId: string, isHovering: boolean) => void;
   translateYOverride?: number;
+  className?: string;
+  strokeColor?: string;
+  width?: string;
+  maxRetries?: number;
+  showManipulationControls?: boolean;
 };
 
 export default function PathLine({
@@ -23,6 +109,11 @@ export default function PathLine({
   color,
   onHover,
   translateYOverride,
+  className = "",
+  strokeColor = "stroke-gray-500",
+  width = "1.5",
+  maxRetries = 5,
+  showManipulationControls = false,
 }: PathLineProps) {
   const [path, setPath] = useState<string>("");
   const [svgPosition, setSvgPosition] = useState({
@@ -42,7 +133,35 @@ export default function PathLine({
   const observersRef = useRef<MutationObserver[]>([]);
   const linesContainerRef = useRef<HTMLDivElement>(null);
   const retryAttemptsRef = useRef(0);
-  const maxRetries = 10; // Maximum number of retries
+  const maxRetriesRef = useRef(maxRetries);
+  const debugModeRef = useRef(false);
+  const calculatePathRef = useRef<() => string>(() => "");
+
+  // Add debug mode state
+  const [debugMode, setDebugMode] = useState(false);
+  
+  // Function to toggle debug mode
+  const toggleDebugMode = () => {
+    setDebugMode(!debugMode);
+    debugModeRef.current = !debugMode;
+    
+    // Toggle debug class on body
+    if (!debugMode) {
+      document.body.classList.add('debug-connections');
+    } else {
+      document.body.classList.remove('debug-connections');
+    }
+  };
+
+  // Inject CSS styles on component mount
+  useEffect(() => {
+    injectStyles();
+    
+    // Cleanup on unmount
+    return () => {
+      document.body.classList.remove('debug-connections');
+    };
+  }, []);
 
   // Helper function to ensure connection points exist
   const ensureConnectionPoints = () => {
@@ -54,9 +173,9 @@ export default function PathLine({
 
     if (!fromElement || !toElement) {
       // Elements are missing, but don't warn if we're still within retry attempts
-      if (retryAttemptsRef.current < maxRetries) {
+      if (retryAttemptsRef.current < maxRetriesRef.current) {
         console.log(
-          `Elements not found yet, will retry: fromId=${fromId}, toId=${toId} (attempt ${retryAttemptsRef.current + 1}/${maxRetries})`,
+          `Elements not found yet, will retry: fromId=${fromId}, toId=${toId} (attempt ${retryAttemptsRef.current + 1}/${maxRetriesRef.current})`,
         );
         setElementsMissing(true);
         return false;
@@ -71,6 +190,64 @@ export default function PathLine({
 
     // Reset the missing flag if elements are found
     setElementsMissing(false);
+
+    // Add required CSS if not already in document
+    if (!document.getElementById('connection-point-styles')) {
+      const styleEl = document.createElement('style');
+      styleEl.id = 'connection-point-styles';
+      styleEl.textContent = `
+        .connection-point-top, .connection-point-bottom {
+          position: absolute;
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          z-index: 5;
+          pointer-events: none;
+          opacity: 0; /* Invisible by default */
+        }
+        .connection-point-top {
+          top: 0;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background-color: blue; /* For debugging */
+        }
+        .connection-point-bottom {
+          bottom: 0;
+          left: 50%;
+          transform: translate(-50%, 50%);
+          background-color: red; /* For debugging */
+        }
+        .endpoint-marker {
+          position: absolute;
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          z-index: 6;
+          pointer-events: none;
+          opacity: 0; /* Invisible by default */
+        }
+        .endpoint-marker-top {
+          top: 0;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background-color: rgba(0, 0, 255, 0.5); /* For debugging */
+        }
+        .endpoint-marker-bottom {
+          bottom: 0;
+          left: 50%;
+          transform: translate(-50%, 50%);
+          background-color: rgba(255, 0, 0, 0.5); /* For debugging */
+        }
+        
+        /* Show the points in dev environment */
+        .debug-connections .connection-point-top,
+        .debug-connections .connection-point-bottom,
+        .debug-connections .endpoint-marker {
+          opacity: 0.5;
+        }
+      `;
+      document.head.appendChild(styleEl);
+    }
 
     // We still set step index for debugging purposes, but it won't affect translation
     if (!fromElement.hasAttribute("data-step-index")) {
@@ -93,6 +270,14 @@ export default function PathLine({
       `From element has data-step-index: ${fromElement.getAttribute("data-step-index") || "not set"}`,
     );
 
+    // Make sure elements have relative positioning for absolute positioning to work
+    if (window.getComputedStyle(fromElement).position === 'static') {
+      fromElement.style.position = 'relative';
+    }
+    if (window.getComputedStyle(toElement).position === 'static') {
+      toElement.style.position = 'relative';
+    }
+
     // Check if connection points already exist
     const fromTopPoint = document.getElementById(`${fromId}-top`);
     const fromBottomPoint = document.getElementById(`${fromId}-bottom`);
@@ -105,59 +290,7 @@ export default function PathLine({
     const toTopMarker = document.getElementById(`${toId}-top-marker`);
     const toBottomMarker = document.getElementById(`${toId}-bottom-marker`);
 
-    // If all connection points exist, we're good
-    if (fromTopPoint && fromBottomPoint && toTopPoint && toBottomPoint) {
-      console.log(`Connection points already exist for ${fromId} -> ${toId}`);
-
-      // If connection points exist but markers don't, create the markers
-      if (
-        !fromTopMarker ||
-        !fromBottomMarker ||
-        !toTopMarker ||
-        !toBottomMarker
-      ) {
-        console.log(`Adding missing visual markers for ${fromId} -> ${toId}`);
-
-        // Only create markers if they don't exist
-        if (!fromTopMarker && fromElement) {
-          const marker = document.createElement("div");
-          marker.id = `${fromId}-top-marker`;
-          marker.className = "endpoint-marker endpoint-marker-top";
-          marker.setAttribute("data-marker-id", `${fromId}-top-marker`);
-          fromElement.appendChild(marker);
-        }
-
-        if (!fromBottomMarker && fromElement) {
-          const marker = document.createElement("div");
-          marker.id = `${fromId}-bottom-marker`;
-          marker.className = "endpoint-marker endpoint-marker-bottom";
-          marker.setAttribute("data-marker-id", `${fromId}-bottom-marker`);
-          fromElement.appendChild(marker);
-        }
-
-        if (!toTopMarker && toElement) {
-          const marker = document.createElement("div");
-          marker.id = `${toId}-top-marker`;
-          marker.className = "endpoint-marker endpoint-marker-top";
-          marker.setAttribute("data-marker-id", `${toId}-top-marker`);
-          toElement.appendChild(marker);
-        }
-
-        if (!toBottomMarker && toElement) {
-          const marker = document.createElement("div");
-          marker.id = `${toId}-bottom-marker`;
-          marker.className = "endpoint-marker endpoint-marker-bottom";
-          marker.setAttribute("data-marker-id", `${toId}-bottom-marker`);
-          toElement.appendChild(marker);
-        }
-      }
-
-      return true;
-    }
-
-    console.log(`Creating missing connection points for ${fromId} -> ${toId}`);
-
-    // Create missing connection points (invisible for calculations)
+    // Create missing connection points (if any)
     if (!fromTopPoint) {
       const topPoint = document.createElement("div");
       topPoint.id = `${fromId}-top`;
@@ -198,7 +331,7 @@ export default function PathLine({
       console.log(`Created bottom connection point for ${toId}`);
     }
 
-    // Also create the visual markers
+    // Also create the visual markers if missing
     if (!fromTopMarker) {
       const marker = document.createElement("div");
       marker.id = `${fromId}-top-marker`;
@@ -231,20 +364,8 @@ export default function PathLine({
       toElement.appendChild(marker);
     }
 
-    // Verify all points were created successfully
-    const allPointsExist =
-      document.getElementById(`${fromId}-top`) &&
-      document.getElementById(`${fromId}-bottom`) &&
-      document.getElementById(`${toId}-top`) &&
-      document.getElementById(`${toId}-bottom`);
-
-    if (!allPointsExist) {
-      console.warn(
-        `Failed to create all connection points for ${fromId} -> ${toId}`,
-      );
-    }
-
-    return allPointsExist;
+    // Verify connection points exist and have proper dimensions
+    return true;
   };
 
   // Calculate path between elements with scroll position consideration
@@ -252,13 +373,10 @@ export default function PathLine({
     if (typeof window === "undefined" || typeof document === "undefined")
       return "";
 
-    // Debug logging to help troubleshoot connection issues
-    console.log(
-      `Calculating path from ${fromId} (RED bottom point) to ${toId} (BLUE top point)`,
-    );
-
     // First ensure connection points exist
-    ensureConnectionPoints();
+    if (!ensureConnectionPoints()) {
+      return ""; // Return empty if we can't create connection points
+    }
 
     // Find the source and target card elements
     const fromElement = document.getElementById(fromId);
@@ -271,109 +389,73 @@ export default function PathLine({
       return "";
     }
 
-    // Find the explicit connection points (bottom of from element, top of to element)
-    const fromConnectionPoint = document.getElementById(`${fromId}-bottom`); // BOTTOM of fromElement (red point)
-    const toConnectionPoint = document.getElementById(`${toId}-top`); // TOP of toElement (blue point)
+    // Calculate positions based on the cards themselves
+    const fromRect = fromElement.getBoundingClientRect();
+    const toRect = toElement.getBoundingClientRect();
 
-    if (!fromConnectionPoint || !toConnectionPoint) {
-      console.warn(
-        `Connection points not found: fromBottom=${!!fromConnectionPoint}, toTop=${!!toConnectionPoint}`,
-      );
-
-      // Fallback to the old approach of calculating positions based on the element bounds
-      // Get positions and dimensions relative to document
-      const fromRect = fromElement.getBoundingClientRect();
-      const toRect = toElement.getBoundingClientRect();
-
-      // Get the bounding rect of a common parent container
-      // Find the nearest common scrollable container
-      const pathwayContainer =
-        document.querySelector(".pathway-container") || document.body;
-      const containerRect = pathwayContainer.getBoundingClientRect();
-
-      // Calculate absolute positions relative to container
-      // For from card: use the exact BOTTOM center
-      const fromX = fromRect.left - containerRect.left + fromRect.width / 2;
-      const fromY = fromRect.bottom - containerRect.top;
-
-      // For to card: use the exact TOP center
-      const toX = toRect.left - containerRect.left + toRect.width / 2;
-      const toY = toRect.top - containerRect.top;
-
-      // No adjustments needed anymore
-      return calculatePathFromPoints(fromX, fromY, toX, toY);
-    }
-
-    // Get the explicit connection points' positions
-    const fromRect = fromConnectionPoint.getBoundingClientRect();
-    const toRect = toConnectionPoint.getBoundingClientRect();
-
-    // Get the container bounds
+    // Get the bounding rect of a common parent container
+    // Find the nearest common scrollable container
     const pathwayContainer =
       document.querySelector(".pathway-container") || document.body;
     const containerRect = pathwayContainer.getBoundingClientRect();
 
-    // Calculate positions relative to the container - use the center of the connection points
-    const fromX = fromRect.left - containerRect.left + fromRect.width / 2;
-    const fromY = fromRect.top - containerRect.top + fromRect.height / 2;
-    const toX = toRect.left - containerRect.left + toRect.width / 2;
-    const toY = toRect.top - containerRect.top + toRect.height / 2;
+    // Calculate the center points of the cards relative to the container
+    const fromCenterX = fromRect.left - containerRect.left + fromRect.width / 2;
+    const toCenterX = toRect.left - containerRect.left + toRect.width / 2;
 
-    console.log(`Path from (${fromX}, ${fromY}) to (${toX}, ${toY})`);
+    // Calculate the connection points at the exact edges of the cards
+    // FROM point: bottom center of the source card
+    const fromX = fromCenterX;
+    const fromY = fromRect.bottom - containerRect.top;
 
-    return calculatePathFromPoints(fromX, fromY, toX, toY);
-  };
+    // TO point: top center of the target card
+    const toX = toCenterX;
+    const toY = toRect.top - containerRect.top;
 
-  // Helper function to calculate the path between two points
-  const calculatePathFromPoints = (
-    fromX: number,
-    fromY: number,
-    toX: number,
-    toY: number,
-  ) => {
-    // Calculate the vertical distance between points to determine path style
-    const verticalDistance = Math.abs(toY - fromY);
-    const horizontalDistance = Math.abs(toX - fromX);
-    
-    // Corner radius for smooth curves - adjust based on distances
-    const cornerRadius = Math.min(20, verticalDistance / 4, horizontalDistance / 4);
-
-    // Calculate midpoint for the curve - adjusting for better appearance
-    const midY = fromY + (toY - fromY) / 2;
+    console.log(`Calculated path: from (${fromX}, ${fromY}) to (${toX}, ${toY})`);
 
     // Calculate SVG container position and dimensions with extra padding
-    const minX = Math.min(fromX, toX) - 100; // More padding on sides
-    const minY = Math.min(fromY, toY) - 50;
-    const maxX = Math.max(fromX, toX) + 100; // More padding on sides
-    const maxY = Math.max(fromY, toY) + 50;
+    // Use generous padding to ensure the path is fully visible
+    const paddingX = Math.max(fromRect.width, toRect.width);
+    const paddingY = Math.abs(toY - fromY) * 0.2; // 20% of the vertical distance as padding
+    
+    const minX = Math.min(fromX, toX) - paddingX;
+    const minY = Math.min(fromY, toY) - paddingY;
+    const maxX = Math.max(fromX, toX) + paddingX;
+    const maxY = Math.max(fromY, toY) + paddingY;
 
-    const svgWidth = maxX - minX + 200;  // Increased width
-    const svgHeight = maxY - minY + 100; // Increased height
+    const svgWidth = maxX - minX + 2 * paddingX;
+    const svgHeight = maxY - minY + 2 * paddingY;
 
-    // Update SVG container position with extra space
+    // Use fixed position instead of absolute to avoid parent container transforms
+    // Apply translateY directly to this position to ensure consistent placement
     setSvgPosition({
-      left: minX - 100,
-      top: minY - 50,
+      left: minX - paddingX,
+      top: minY - paddingY + (translateYOverride !== undefined ? translateYOverride : 0),
       width: svgWidth,
       height: svgHeight,
     });
 
     // Create path data relative to the SVG container
-    const relFromX = fromX - (minX - 100);
-    const relFromY = fromY - (minY - 50);
-    const relToX = toX - (minX - 100);
-    const relToY = toY - (minY - 50);
-    const relMidY = midY - (minY - 50);
+    const relFromX = fromX - (minX - paddingX);
+    const relFromY = fromY - (minY - paddingY);
+    const relToX = toX - (minX - paddingX);
+    const relToY = toY - (minY - paddingY);
+    
+    // Calculate midpoint for the curve
+    const midY = relFromY + (relToY - relFromY) / 2;
+
+    // Calculate the vertical distance between points to determine path style
+    const verticalDistance = Math.abs(relToY - relFromY);
+    const horizontalDistance = Math.abs(relToX - relFromX);
+    
+    // Corner radius for smooth curves
+    const cornerRadius = Math.min(20, verticalDistance / 4, horizontalDistance / 4);
 
     // Start path at the from point
     let pathData = `M ${relFromX} ${relFromY}`;
 
-    // Enhanced path drawing logic:
-    // 1. For closely aligned points vertically, use a straight line
-    // 2. For points aligned horizontally, use a simple curve
-    // 3. For most cases, use a nice S-curve with proper corners
-
-    // If the cards are roughly aligned vertically and close
+    // Determine the appropriate path style without changing the shape
     if (Math.abs(relFromX - relToX) < 30 && verticalDistance < 150) {
       // Simple vertical path with no corners needed
       pathData += ` L ${relToX} ${relToY}`;
@@ -386,23 +468,23 @@ export default function PathLine({
     // Default case: pipe-like path with corners
     else {
       // Go down vertically to the midpoint with some buffer
-      pathData += ` L ${relFromX} ${relMidY - cornerRadius}`;
+      pathData += ` L ${relFromX} ${midY - cornerRadius}`;
 
       // First corner
       if (relFromX < relToX) {
         // Going right
-        pathData += ` Q ${relFromX} ${relMidY} ${relFromX + cornerRadius} ${relMidY}`;
+        pathData += ` Q ${relFromX} ${midY} ${relFromX + cornerRadius} ${midY}`;
         // Horizontal segment
-        pathData += ` L ${relToX - cornerRadius} ${relMidY}`;
+        pathData += ` L ${relToX - cornerRadius} ${midY}`;
         // Second corner
-        pathData += ` Q ${relToX} ${relMidY} ${relToX} ${relMidY + cornerRadius}`;
+        pathData += ` Q ${relToX} ${midY} ${relToX} ${midY + cornerRadius}`;
       } else {
         // Going left
-        pathData += ` Q ${relFromX} ${relMidY} ${relFromX - cornerRadius} ${relMidY}`;
+        pathData += ` Q ${relFromX} ${midY} ${relFromX - cornerRadius} ${midY}`;
         // Horizontal segment
-        pathData += ` L ${relToX + cornerRadius} ${relMidY}`;
+        pathData += ` L ${relToX + cornerRadius} ${midY}`;
         // Second corner
-        pathData += ` Q ${relToX} ${relMidY} ${relToX} ${relMidY + cornerRadius}`;
+        pathData += ` Q ${relToX} ${midY} ${relToX} ${midY + cornerRadius}`;
       }
 
       // Final vertical segment to the target
@@ -417,6 +499,9 @@ export default function PathLine({
 
     return pathData;
   };
+
+  // Assign calculatePath to calculatePathRef
+  calculatePathRef.current = calculatePath;
 
   // Force recalculation with debouncing
   const forceRecalculation = () => {
@@ -544,8 +629,8 @@ export default function PathLine({
         const attemptRetry = () => {
           retryAttemptsRef.current++;
           
-          if (retryAttemptsRef.current <= maxRetries) {
-            console.log(`Retry attempt ${retryAttemptsRef.current}/${maxRetries} for path ${fromId} -> ${toId}`);
+          if (retryAttemptsRef.current <= maxRetriesRef.current) {
+            console.log(`Retry attempt ${retryAttemptsRef.current}/${maxRetriesRef.current} for path ${fromId} -> ${toId}`);
             
             // Exponential backoff: wait longer between attempts
             const retryDelay = Math.min(100 * Math.pow(1.5, retryAttemptsRef.current), 2000);
@@ -562,7 +647,7 @@ export default function PathLine({
               }
             }, retryDelay);
           } else {
-            console.warn(`Max retries (${maxRetries}) exceeded for ${fromId} -> ${toId}`);
+            console.warn(`Max retries (${maxRetriesRef.current}) exceeded for ${fromId} -> ${toId}`);
           }
         };
         
@@ -809,7 +894,7 @@ export default function PathLine({
   }, [translateYOverride]);
 
   // Skip rendering if elements are missing after all retries
-  if (elementsMissing && retryAttemptsRef.current >= maxRetries) return null;
+  if (elementsMissing && retryAttemptsRef.current >= maxRetriesRef.current) return null;
   
   // Skip rendering if path is not calculated yet
   if (!path) return null;
@@ -831,54 +916,97 @@ export default function PathLine({
   }
 
   return (
-    <motion.div
-      className="path-line"
-      style={{
-        position: "absolute",
-        left: svgPosition.left,
-        top: svgPosition.top,
-        width: svgPosition.width,
-        height: svgPosition.height,
-        pointerEvents: "none",
-        zIndex: 0,
-      }}
-      initial={{ opacity: 0, translateY: 0 }}
-      animate={{ opacity: 1, translateY: 0 }}
-      transition={{ delay, duration: 0.5 }}
-    >
-      <svg
-        width={svgPosition.width}
-        height={svgPosition.height}
-        style={{ 
-          overflow: "visible",
-          position: "absolute",
-          top: 0,
-          left: 0
+    <>
+      {/* SVG container for the path */}
+      <div
+        className={cn("absolute pointer-events-none", className)}
+        style={{
+          left: svgPosition.left + "px",
+          top: svgPosition.top + "px",
+          width: svgPosition.width + "px",
+          height: svgPosition.height + "px",
+          overflow: "visible", // Ensure paths aren't clipped
+          zIndex: 0, // Make sure it's behind the cards
+          position: "fixed", // Use fixed positioning to avoid parent transforms
         }}
-        data-from-id={fromId}
-        data-to-id={toId}
-        className="path-line-svg"
       >
-        <motion.path
-          d={path}
-          fill="none"
-          strokeWidth={strokeWidth}
-          stroke={stroke}
-          strokeOpacity={isHighlighted ? 0.9 : 0.7}
-          strokeDasharray={type === "rejected" ? "5,5" : "none"}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1 }}
-          transition={{ duration: 0.8, delay: delay + 0.2 }}
-          onMouseEnter={() => onHover && onHover(fromId, toId, true)}
-          onMouseLeave={() => onHover && onHover(fromId, toId, false)}
-          style={{ pointerEvents: "stroke" }}
-          data-from-id={fromId}
-          data-to-id={toId}
-          data-path-type={type}
-        />
-      </svg>
-    </motion.div>
+        <svg
+          className="w-full h-full"
+          xmlns="http://www.w3.org/2000/svg"
+          style={{
+            strokeLinecap: "round",
+            strokeLinejoin: "round",
+            fill: "none",
+            overflow: "visible", // Ensure paths aren't clipped
+          }}
+        >
+          <motion.path
+            d={path}
+            fill="none"
+            strokeWidth={strokeWidth}
+            stroke={stroke}
+            strokeOpacity={isHighlighted ? 0.9 : 0.7}
+            strokeDasharray={type === "rejected" ? "5,5" : "none"}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: 1 }}
+            transition={{ duration: 0.8, delay: delay + 0.2 }}
+            onMouseEnter={() => onHover && onHover(fromId, toId, true)}
+            onMouseLeave={() => onHover && onHover(fromId, toId, false)}
+            style={{ pointerEvents: "stroke" }}
+            data-from-id={fromId}
+            data-to-id={toId}
+            data-path-type={type}
+          />
+        </svg>
+      </div>
+      
+      {/* Debug controls - only in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="fixed bottom-4 right-4 z-50 bg-gray-800 text-white p-2 rounded-md shadow-md">
+          <button 
+            onClick={toggleDebugMode} 
+            className="px-3 py-1 text-xs rounded bg-blue-600 hover:bg-blue-700 transition-colors"
+          >
+            {debugMode ? 'Hide Connection Points' : 'Show Connection Points'}
+          </button>
+          
+          {debugMode && (
+            <div className="mt-2 text-xs">
+              <div className="flex items-center mb-1">
+                <div className="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
+                <span>Top Connection Points</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
+                <span>Bottom Connection Points</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Add manipulation controls for development */}
+      {showManipulationControls && (
+        <div className="fixed top-4 right-4 z-50 bg-gray-800 text-white p-2 rounded-md shadow-md">
+          <button 
+            onClick={() => {
+              retryAttemptsRef.current = 0;
+              if (calculatePathRef.current) calculatePathRef.current();
+            }} 
+            className="px-3 py-1 text-xs rounded bg-green-600 hover:bg-green-700 transition-colors mr-2"
+          >
+            Reset Connection
+          </button>
+          <button
+            onClick={() => calculatePathRef.current && calculatePathRef.current()} 
+            className="px-3 py-1 text-xs rounded bg-yellow-600 hover:bg-yellow-700 transition-colors"
+          >
+            Recalculate Path
+          </button>
+        </div>
+      )}
+    </>
   );
 }

@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Interactive Debug Tool</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      margin: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+    }
+    .section {
+      margin-bottom: 20px;
+      padding: 15px;
+      border: 1px solid #eee;
+      border-radius: 4px;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 14px;
+      margin: 4px 2px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .output {
+      background-color: #f8f8f8;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px;
+      margin-top: 10px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .infoBox {
+      background-color: #e7f3fe;
+      border-left: 4px solid #2196F3;
+      padding: 12px;
+      margin: 10px 0;
+    }
+    .errorBox {
+      background-color: #ffebee;
+      border-left: 4px solid #f44336;
+      padding: 12px;
+      margin: 10px 0;
+    }
+    .successBox {
+      background-color: #e8f5e9;
+      border-left: 4px solid #4CAF50;
+      padding: 12px;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Monte Carlo 3D Debug Tool</h1>
+    
+    <div class="section">
+      <h2>Instructions</h2>
+      <p>This tool helps debug and fix the point selection issues in the Monte Carlo visualization.</p>
+      <p>1. Open the Monte Carlo page in a new tab</p>
+      <p>2. Select the batch you want to visualize</p>
+      <p>3. Run the diagnostic tests below</p>
+      <p>4. Follow the recommended fixes</p>
+    </div>
+    
+    <div class="section">
+      <h2>Event Diagnostics</h2>
+      <button id="diagEvents">Diagnose Event Handling</button>
+      <div id="eventOutput" class="output"></div>
+    </div>
+    
+    <div class="section">
+      <h2>Three.js Diagnostics</h2>
+      <button id="diagThree">Diagnose Three.js Scene</button>
+      <div id="threeOutput" class="output"></div>
+    </div>
+    
+    <div class="section">
+      <h2>Fix Selection Issues</h2>
+      <button id="applyFix">Apply Point Selection Fix</button>
+      <div id="fixOutput" class="output"></div>
+    </div>
+  </div>
+
+  <script>
+    // Diagnostic functions
+    function diagnoseEventHandling() {
+      const output = document.getElementById('eventOutput');
+      output.innerHTML = "Running event diagnostic...\n";
+      
+      try {
+        // Open an alert to pause execution so you can switch to the Monte Carlo tab
+        alert("Switch to the Monte Carlo tab and click OK to continue");
+        
+        // Try to get a reference to the canvas in the other tab
+        // This won't work directly due to browser security, but we can provide guidance
+        output.innerHTML += "Cannot directly access other tabs due to browser security.\n\n";
+        output.innerHTML += "MANUAL DIAGNOSTIC STEPS:\n";
+        output.innerHTML += "1. Go to Monte Carlo tab\n";
+        output.innerHTML += "2. Open browser dev tools (F12 or Right-click > Inspect)\n";
+        output.innerHTML += "3. In Console tab, paste and run this code:\n\n";
+        
+        const diagCode = `
+// Find the canvas element
+const canvas = document.querySelector('canvas');
+console.log('Canvas found:', !!canvas);
+
+// Add a test click handler
+if (canvas) {
+  const testHandler = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    console.log('Canvas clicked at:', x, y);
+    
+    // Create a visual marker at the click position
+    const marker = document.createElement('div');
+    marker.style.position = 'absolute';
+    marker.style.left = (e.clientX - 5) + 'px';
+    marker.style.top = (e.clientY - 5) + 'px';
+    marker.style.width = '10px';
+    marker.style.height = '10px';
+    marker.style.borderRadius = '50%';
+    marker.style.backgroundColor = 'red';
+    marker.style.zIndex = '9999';
+    document.body.appendChild(marker);
+    
+    // Remove after 2 seconds
+    setTimeout(() => marker.remove(), 2000);
+  };
+  
+  // Store original click handlers
+  window._originalClickHandlers = {};
+  const originalHandlers = getEventListeners(canvas).click || [];
+  originalHandlers.forEach((handler, i) => {
+    window._originalClickHandlers[i] = handler.listener;
+  });
+  
+  // Add our test handler
+  canvas.addEventListener('click', testHandler);
+  console.log('Test click handler added');
+  
+  // Log Three.js scene info if available
+  if (window.__REACTDEVTOOLS_GLOBAL_HOOK__) {
+    console.log('React DevTools hook found');
+    const roots = Array.from(window.__REACTDEVTOOLS_GLOBAL_HOOK__.getFiberRoots(1));
+    console.log('React roots:', roots.length);
+    
+    // Try to find the monte carlo component
+    let monteCarlo = null;
+    for (const root of roots) {
+      const node = root.current;
+      if (node && node.memoizedState && node.memoizedState.element) {
+        const element = node.memoizedState.element;
+        if (element.type && element.type.name === 'MonteCarloVisualizer') {
+          monteCarlo = element;
+          break;
+        }
+      }
+    }
+    
+    console.log('Monte Carlo component found:', !!monteCarlo);
+  }
+}`;
+        
+        output.innerHTML += "<code>" + diagCode + "</code>\n\n";
+        output.innerHTML += "4. Click on several points in the 3D visualization\n";
+        output.innerHTML += "5. Check console for click events being registered\n\n";
+        
+        // Add a div with success message
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'infoBox';
+        infoDiv.innerHTML = "If clicks are being detected but points aren't highlighting, this indicates an issue with the state management or rendering, not the click detection.";
+        output.appendChild(infoDiv);
+      } catch (err) {
+        output.innerHTML += "Error: " + err.message;
+      }
+    }
+    
+    function diagnoseThreeJsScene() {
+      const output = document.getElementById('threeOutput');
+      output.innerHTML = "Running Three.js diagnostic...\n";
+      
+      try {
+        // Open an alert to pause execution so you can switch to the Monte Carlo tab
+        alert("Switch to the Monte Carlo tab and click OK to continue");
+        
+        output.innerHTML += "Cannot directly access other tabs due to browser security.\n\n";
+        output.innerHTML += "MANUAL DIAGNOSTIC STEPS:\n";
+        output.innerHTML += "1. Go to Monte Carlo tab\n";
+        output.innerHTML += "2. Open browser dev tools (F12 or Right-click > Inspect)\n";
+        output.innerHTML += "3. In Console tab, paste and run this code:\n\n";
+        
+        const diagCode = `
+// Find the canvas and check if it's a WebGL canvas
+const canvas = document.querySelector('canvas');
+console.log('Canvas found:', !!canvas);
+
+if (canvas) {
+  // Try to get the WebGL context
+  const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+  console.log('WebGL context available:', !!gl);
+  
+  // Check for Three.js instance
+  console.log('THREE in window:', typeof window.THREE !== 'undefined');
+  
+  // Inject diagnostic code
+  const script = document.createElement('script');
+  script.src = 'https://threejs.org/build/three.min.js';
+  script.onload = function() {
+    console.log('Three.js loaded for diagnostics');
+    
+    // Save existing renderer to restore later
+    const originalRenderer = window.__threeRenderer;
+    
+    // Create a diagnostic renderer
+    const diagRenderer = new THREE.WebGLRenderer({canvas});
+    
+    // Get scene information
+    let sceneInfo = {
+      objectCount: 0,
+      meshCount: 0,
+      materialTypes: {},
+      geometryTypes: {}
+    };
+    
+    if (window.__threeScene) {
+      window.__threeScene.traverse(object => {
+        sceneInfo.objectCount++;
+        
+        if (object.isMesh) {
+          sceneInfo.meshCount++;
+          
+          // Count material types
+          const matType = object.material.type;
+          sceneInfo.materialTypes[matType] = (sceneInfo.materialTypes[matType] || 0) + 1;
+          
+          // Count geometry types
+          const geoType = object.geometry.type;
+          sceneInfo.geometryTypes[geoType] = (sceneInfo.geometryTypes[geoType] || 0) + 1;
+        }
+      });
+    }
+    
+    console.log('Scene diagnostic info:', sceneInfo);
+    
+    // Patch the renderer to log clicks
+    const oldRender = diagRenderer.render;
+    diagRenderer.render = function(scene, camera) {
+      window.__threeScene = scene;
+      window.__threeCamera = camera;
+      window.__threeRenderer = this;
+      
+      // Create a raycasting function
+      window.checkRaycast = function(x, y) {
+        if (!scene || !camera) return;
+        
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        
+        // Convert to normalized device coordinates
+        mouse.x = (x / window.innerWidth) * 2 - 1;
+        mouse.y = -(y / window.innerHeight) * 2 + 1;
+        
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(scene.children, true);
+        
+        console.log('Raycaster intersections:', intersects.length);
+        console.log('First 3 intersections:', intersects.slice(0, 3));
+      };
+      
+      return oldRender.call(this, scene, camera);
+    };
+    
+    console.log('Diagnostics prepared. You can now click in the scene and then run checkRaycast(x, y) with the click coordinates.');
+  };
+  document.head.appendChild(script);
+}`;
+        
+        output.innerHTML += "<code>" + diagCode + "</code>\n\n";
+        output.innerHTML += "4. Click on a point in the visualization\n";
+        output.innerHTML += "5. Run <code>checkRaycast(mouseX, mouseY)</code> with the click coordinates\n";
+        output.innerHTML += "6. Check if any objects are being intersected\n\n";
+        
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'infoBox';
+        infoDiv.innerHTML = "If no intersections are found, the points might not be properly set up for raycasting. If intersections are found but no selection happens, there's an issue with the state update.";
+        output.appendChild(infoDiv);
+      } catch (err) {
+        output.innerHTML += "Error: " + err.message;
+      }
+    }
+    
+    function applyFix() {
+      const output = document.getElementById('fixOutput');
+      output.innerHTML = "Preparing fix...\n";
+      
+      try {
+        output.innerHTML += "Cannot directly modify other tabs due to browser security.\n\n";
+        output.innerHTML += "MANUAL FIX STEPS:\n";
+        output.innerHTML += "1. Go back to the code editor\n";
+        output.innerHTML += "2. Replace the Points component in monte-carlo/scene/points.tsx with this code:\n\n";
+        
+        const fixCode = `"use client";
+
+import React, { useRef, useEffect } from 'react';
+import { useThree } from '@react-three/fiber';
+import * as THREE from 'three';
+import type { PointWithCluster } from '@/lib/monte-carlo-service';
+import { findClosestPoints, SELECTION_COLOR, CLUSTER_SELECTION_COLOR } from '../utils';
+
+interface PointsProps {
+  data: PointWithCluster[];
+  hoveredPoint: PointWithCluster | null;
+  setHoveredPoint: (point: PointWithCluster | null) => void;
+  setClosestPoints: (points: PointWithCluster[]) => void;
+  selectedPoint: PointWithCluster | null;
+  setSelectedPoint: (point: PointWithCluster | null) => void;
+  selectedClusters: number[];
+  isCameraMovingRef: React.RefObject<boolean>;
+  filteredData: PointWithCluster[]; 
+}
+
+// Brighter colors for better visibility
+const BRIGHT_COLORS = {
+  "gpt-4": "#3b82f6",    // blue-500
+  "claude": "#8b5cf6",   // violet-500
+  "o1": "#22c55e",       // green-500
+  "o3": "#f59e0b",       // amber-500
+  "other": "#64748b",    // slate-500
+};
+
+export function Points({
+  data,
+  hoveredPoint,
+  setHoveredPoint,
+  setClosestPoints,
+  selectedPoint,
+  setSelectedPoint,
+  selectedClusters,
+  isCameraMovingRef,
+  filteredData,
+}: PointsProps) {
+  // Simple array with one sphere per point
+  const points = useRef<THREE.Object3D[]>([]);
+  const group = useRef<THREE.Group>(null);
+  const { raycaster, mouse, camera, gl, scene } = useThree();
+  
+  // Main click handler function
+  const handlePointClicked = (point: PointWithCluster) => {
+    if (!filteredData.some(p => p.id === point.id)) return;
+    
+    console.log("CLICK DETECTED on point:", point.id, point.model);
+    
+    // Visual debug feedback
+    const debug = new THREE.Mesh(
+      new THREE.SphereGeometry(0.2, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true })
+    );
+    debug.position.set(point.position[0], point.position[1], point.position[2]);
+    scene.add(debug);
+    
+    // Clean up debug visual after 2 seconds
+    setTimeout(() => scene.remove(debug), 2000);
+    
+    // Toggle selection
+    if (selectedPoint && selectedPoint.id === point.id) {
+      console.log("DESELECTING point:", point.id);
+      setSelectedPoint(null);
+    } else {
+      console.log("SELECTING point:", point.id);
+      setSelectedPoint(point);
+    }
+  };
+  
+  // Handle canvas click to detect point clicks
+  useEffect(() => {
+    // Skip if no group or no data
+    if (!gl || !camera || data.length === 0) return;
+    
+    // Get the canvas element
+    const canvas = gl.domElement;
+    
+    // Define click handler
+    const handleCanvasClick = (event: MouseEvent) => {
+      // Skip if camera is moving
+      if (isCameraMovingRef.current) return;
+      
+      // Get click position in normalized device coordinates (-1 to +1)
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      const mouseY = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      
+      // Set up raycaster
+      const tempRaycaster = new THREE.Raycaster();
+      tempRaycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), camera);
+      
+      // Look for the first point that's intersected
+      if (group.current) {
+        const intersects = tempRaycaster.intersectObjects(group.current.children, true);
+        
+        if (intersects.length > 0) {
+          // Find the data point from the object's userData
+          let currentObj = intersects[0].object;
+          while (currentObj && !currentObj.userData?.pointId) {
+            currentObj = currentObj.parent;
+          }
+          
+          if (currentObj && currentObj.userData?.pointId) {
+            const pointId = currentObj.userData.pointId;
+            const point = data.find(p => p.id === pointId);
+            
+            if (point) {
+              // Alert for debugging
+              console.log("Intersected point:", pointId);
+              
+              // Handle the click
+              handlePointClicked(point);
+            }
+          }
+        }
+      }
+    };
+    
+    // Add event listener
+    canvas.addEventListener('click', handleCanvasClick, false);
+    
+    // Cleanup
+    return () => {
+      canvas.removeEventListener('click', handleCanvasClick);
+    };
+  }, [gl, camera, data, selectedPoint, filteredData, isCameraMovingRef, setSelectedPoint]);
+  
+  // Helper function to get point color
+  const getPointColor = (point: PointWithCluster): string => {
+    // Selected point
+    if (selectedPoint && point.id === selectedPoint.id) {
+      return SELECTION_COLOR;
+    }
+    
+    // Points closest to selected point
+    if (selectedPoint) {
+      const closest = findClosestPoints(selectedPoint, data, 4);
+      if (closest.some(p => p.id === point.id)) {
+        return SELECTION_COLOR;
+      }
+    }
+    
+    // Hovered point
+    if (hoveredPoint && point.id === hoveredPoint.id) {
+      return SELECTION_COLOR;
+    }
+    
+    // Points closest to hovered point
+    if (hoveredPoint) {
+      const closest = findClosestPoints(hoveredPoint, data, 4);
+      if (closest.some(p => p.id === point.id)) {
+        return SELECTION_COLOR;
+      }
+    }
+    
+    // Points in selected cluster
+    if (selectedClusters.length > 0 && selectedClusters.includes(point.cluster ?? -1)) {
+      return CLUSTER_SELECTION_COLOR;
+    }
+    
+    // Default color based on model
+    const modelLower = point.model.toLowerCase().trim();
+    if (modelLower.includes("gpt-4") || modelLower.includes("gpt4") || modelLower.includes("gpt-4o")) {
+      return BRIGHT_COLORS["gpt-4"];
+    }
+    if (modelLower.includes("claude-sonnet") || modelLower.includes("claude")) {
+      return BRIGHT_COLORS.claude;
+    }
+    if (modelLower.includes("o1")) {
+      return BRIGHT_COLORS.o1;
+    }
+    if (modelLower.includes("o3-mini") || modelLower.includes("o3")) {
+      return BRIGHT_COLORS.o3;
+    }
+    return BRIGHT_COLORS.other;
+  };
+  
+  // Point scaling based on state
+  const getPointScale = (point: PointWithCluster): number => {
+    if (selectedPoint && point.id === selectedPoint.id) {
+      return 1.2; // Selected points are larger
+    }
+    if (hoveredPoint && point.id === hoveredPoint.id) {
+      return 1.1; // Hovered points are slightly larger
+    }
+    return 1; // Default scale
+  };
+
+  // Super simple implementation with direct meshes
+  return (
+    <group ref={group}>
+      {data.map((point, i) => (
+        <mesh
+          key={point.id}
+          position={[point.position[0], point.position[1], point.position[2]]}
+          scale={[getPointScale(point), getPointScale(point), getPointScale(point)]}
+          userData={{ pointId: point.id, pointIndex: i }}
+          onClick={(e) => {
+            e.stopPropagation();
+            // This may not work directly, but we'll try both approaches
+            handlePointClicked(point);
+          }}
+        >
+          <sphereGeometry args={[0.10, 24, 24]} />
+          <meshBasicMaterial color={getPointColor(point)} toneMapped={false} />
+        </mesh>
+      ))}
+    </group>
+  );
+}`;
+        
+        output.innerHTML += "<code>" + fixCode + "</code>\n\n";
+        output.innerHTML += "3. Add this code to visualizer-canvas.tsx just before the Canvas component to fix the issue:\n\n";
+        
+        const canvasFixCode = `// Add this before the Canvas component
+useEffect(() => {
+  // Create global callback for debugging
+  window.__handleMonteCarloPointSelection = (pointId) => {
+    const point = data.find(p => p.id === pointId);
+    if (point) {
+      console.log("External selection of point:", pointId);
+      setSelectedPoint(point);
+      return true;
+    }
+    return false;
+  };
+  
+  return () => {
+    delete window.__handleMonteCarloPointSelection;
+  };
+}, [data, setSelectedPoint]);`;
+        
+        output.innerHTML += "<code>" + canvasFixCode + "</code>\n\n";
+        
+        const successDiv = document.createElement('div');
+        successDiv.className = 'successBox';
+        successDiv.innerHTML = "After applying these changes, the selection should work properly. If you still have issues, try the fallback approach by adding a direct DOM click listener from the browser console.";
+        output.appendChild(successDiv);
+      } catch (err) {
+        output.innerHTML += "Error: " + err.message;
+      }
+    }
+    
+    // Add event listeners to buttons
+    document.getElementById('diagEvents').addEventListener('click', diagnoseEventHandling);
+    document.getElementById('diagThree').addEventListener('click', diagnoseThreeJsScene);
+    document.getElementById('applyFix').addEventListener('click', applyFix);
+  </script>
+</body>
+</html>

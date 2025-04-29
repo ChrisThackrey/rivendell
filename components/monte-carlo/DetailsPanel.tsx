@@ -37,8 +37,8 @@ export function DetailsPanel({
             </span>
           </div>
           <div className="space-y-3">
-            {/* Show up to 10 points from the selected cluster(s) */}
-            {selectedClusterPoints.slice(0, 10).map((point) => (
+            {/* Show all points from the selected cluster(s) */}
+            {selectedClusterPoints.map((point) => (
               <DetailCard
                 key={`cluster-point-${point.id}`}
                 point={point}
@@ -46,11 +46,6 @@ export function DetailsPanel({
                 isMain={selectedPoint?.id === point.id} // Highlight if it's also the selected point
               />
             ))}
-            {selectedClusterPoints.length > 10 && (
-              <p className="text-xs text-center text-slate-500">
-                + {selectedClusterPoints.length - 10} more points not shown
-              </p>
-            )}
           </div>
         </>
       ) : selectedPoint ? (

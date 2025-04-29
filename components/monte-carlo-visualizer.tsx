@@ -66,7 +66,16 @@ export default function MonteCarloVisualizer({
 
   // --- Interaction Handlers ---
   const isCameraMovingRecently = useCallback(() => Date.now() - lastCameraMovement < 500, [lastCameraMovement]);
-  const handleDeselectAll = useCallback(() => { setSelectedPoint(null); setSelectedClusters([]); }, []);
+  const handleDeselectAll = useCallback(() => { 
+    setSelectedPoint(null); 
+    setSelectedClusters([]);
+    // Ensure we don't prevent selection after deselection
+    setPreventAutoDeselect(false);
+    // Force invalidate to ensure re-render
+    if (invalidateRef.current) {
+      invalidateRef.current();
+    }
+  }, []);
   const handleCameraChange = useCallback(() => {
       if (controlsRef.current) {
         const camera = controlsRef.current.object;
@@ -129,31 +138,163 @@ export default function MonteCarloVisualizer({
    const toggleClusterSelection = useCallback((clusterId: number) => {
       let nextSelectedPoint: PointWithCluster | null = selectedPoint;
       let nextSelectedClusters: number[] = [];
+      
       setSelectedClusters((prev) => {
          const isSelected = prev.includes(clusterId);
-         if (isSelected) { nextSelectedClusters = prev.filter((id) => id !== clusterId); if (selectedPoint?.cluster === clusterId) nextSelectedPoint = null; }
-         else { nextSelectedClusters = [...prev, clusterId]; const clusterPoints = filteredData.filter(p => p.cluster === clusterId); if (clusterPoints.length > 0 && (selectedPoint?.cluster !== clusterId)) nextSelectedPoint = clusterPoints[0]; }
+         if (isSelected) { 
+            // Deselecting cluster
+            nextSelectedClusters = prev.filter((id) => id !== clusterId); 
+            if (selectedPoint?.cluster === clusterId) nextSelectedPoint = null; 
+         } else { 
+            // Selecting cluster - keep previous cluster selections and add new one
+            nextSelectedClusters = [...prev, clusterId]; 
+            
+            // Get all points in this cluster
+            const clusterPoints = filteredData.filter(p => p.cluster === clusterId);
+            
+            // Optionally select a representative point from the cluster
+            if (clusterPoints.length > 0 && (selectedPoint?.cluster !== clusterId)) {
+               // Keep existing selected point if there is one, or select the first point in the cluster
+               nextSelectedPoint = selectedPoint || clusterPoints[0];
+            }
+         }
          return nextSelectedClusters;
       });
-      if (nextSelectedPoint !== selectedPoint) setSelectedPoint(nextSelectedPoint);
+      
+      // Update selected point if changed
+      if (nextSelectedPoint !== selectedPoint) {
+         setSelectedPoint(nextSelectedPoint);
+      }
+      
+      // Focus camera on all selected points after a short delay
       setTimeout(() => {
-          if (nextSelectedClusters.length > 0) { const points = filteredData.filter(p => p.cluster && nextSelectedClusters.includes(p.cluster)); if (points.length > 0) focusCameraOnAllPoints(points, 0.8); }
-          else if (nextSelectedPoint) { const closest = findClosestPoints(nextSelectedPoint, filteredData, 4); focusCameraOnAllPoints([nextSelectedPoint, ...closest], 0.5); }
+          if (nextSelectedClusters.length > 0) { 
+             // Get all points in the selected clusters
+             const points = filteredData.filter(p => p.cluster && nextSelectedClusters.includes(p.cluster));
+             if (points.length > 0) {
+                // Focus camera on all points in the selected clusters
+                focusCameraOnAllPoints(points, 0.8);
+                console.log(`Focusing camera on ${points.length} points in ${nextSelectedClusters.length} selected clusters`);
+             }
+          } else if (nextSelectedPoint) { 
+             // If just a single point is selected, focus on it and its closest points
+             const closest = findClosestPoints(nextSelectedPoint, filteredData, 4); 
+             focusCameraOnAllPoints([nextSelectedPoint, ...closest], 0.5); 
+          }
       }, 50);
    }, [filteredData, selectedPoint, focusCameraOnAllPoints, data, selectedClusters]);
 
   const handleFocusCamera = useCallback(() => {
-      if (selectedPoint) { const pointsToFocus = [selectedPoint, ...selectedClosestPoints]; focusCameraOnAllPoints(pointsToFocus, 0.5); }
-      else if (selectedClusterPoints.length > 0) { focusCameraOnAllPoints(selectedClusterPoints, 0.8); }
-      else if (filteredData.length > 0) { focusCameraOnAllPoints(filteredData); }
+      if (selectedPoint) { 
+        // Add a small delay to ensure the camera position updates correctly
+        setTimeout(() => {
+          const pointsToFocus = [selectedPoint, ...selectedClosestPoints]; 
+          focusCameraOnAllPoints(pointsToFocus, 0.5);
+          console.log("Focusing on selected point and closest points:", pointsToFocus.length);
+        }, 50);
+      }
+      else if (selectedClusterPoints.length > 0) { 
+        setTimeout(() => {
+          focusCameraOnAllPoints(selectedClusterPoints, 0.8);
+          console.log("Focusing on selected cluster points:", selectedClusterPoints.length);
+        }, 50);
+      }
+      else if (filteredData.length > 0) { 
+        setTimeout(() => {
+          focusCameraOnAllPoints(filteredData);
+          console.log("Focusing on all filtered data points:", filteredData.length);
+        }, 50);
+      }
    }, [selectedPoint, selectedClosestPoints, selectedClusterPoints, filteredData, focusCameraOnAllPoints]);
 
   // --- Effects ---
-  useEffect(() => { /* filter data */ }, [selectedModelFilter, data]);
-  useEffect(() => { /* update closest points */ }, [selectedPoint, data]);
-  useEffect(() => { /* update cluster points */ }, [selectedClusters, filteredData]);
-  useEffect(() => { /* camera movement state */ }, [isCameraMovingRecently, selectedPoint, selectedClusters]);
-  useEffect(() => { /* ESC key listener */ }, [handleDeselectAll]);
+  // Filter data based on selected model filter
+  useEffect(() => {
+    if (selectedModelFilter === null) {
+      setFilteredData(data);
+    } else {
+      const filtered = data.filter((point) => {
+        const modelLower = point.model.toLowerCase();
+        if (selectedModelFilter === "gpt-4" && (modelLower.includes("gpt-4") || modelLower.includes("gpt4") || modelLower.includes("gpt-4o"))) return true;
+        if (selectedModelFilter === "claude" && modelLower.includes("claude")) return true;
+        if (selectedModelFilter === "o1" && modelLower.includes("o1") && !modelLower.includes("gpt")) return true;
+        if (selectedModelFilter === "o3" && (modelLower.includes("o3") || modelLower.includes("o3-mini"))) return true;
+        if (selectedModelFilter === "other" && !modelLower.includes("gpt") && !modelLower.includes("claude") && !modelLower.includes("o1") && !modelLower.includes("o3")) return true;
+        return false;
+      });
+      setFilteredData(filtered);
+      
+      // When applying a model filter, focus the camera on the filtered points
+      if (filtered.length > 0) {
+        // Use a short delay to ensure the points are updated first
+        setTimeout(() => {
+          // Only focus if we're filtering to a smaller set than the full data
+          if (filtered.length < data.length) {
+            console.log(`Focusing camera on ${filtered.length} filtered points for model: ${selectedModelFilter}`);
+            focusCameraOnAllPoints(filtered, 0.9);
+          }
+        }, 100);
+      }
+    }
+  }, [selectedModelFilter, data, focusCameraOnAllPoints]);
+  
+  // Update closest points when selected point changes
+  useEffect(() => {
+    if (selectedPoint && data.length > 0) {
+      const closest = findClosestPoints(selectedPoint, data, 4);
+      setSelectedClosestPoints(closest);
+    } else {
+      setSelectedClosestPoints([]);
+    }
+  }, [selectedPoint, data]);
+  
+  // Update selected cluster points when selected clusters change
+  useEffect(() => {
+    if (selectedClusters.length > 0) {
+      // Get all points that belong to any of the selected clusters
+      const points = filteredData.filter(
+        (point) => point.cluster !== undefined && selectedClusters.includes(point.cluster)
+      );
+      console.log(`Updated cluster points: ${points.length} points in ${selectedClusters.length} clusters`);
+      setSelectedClusterPoints(points);
+    } else {
+      setSelectedClusterPoints([]);
+    }
+  }, [selectedClusters, filteredData]);
+  
+  // Handle camera movement state
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isCameraMovingRecently()) {
+        // Camera is still moving
+        isCameraMovingRef.current = true;
+      } else if (isCameraMovingRef.current) {
+        // Camera just stopped moving
+        console.log("Camera movement stopped");
+        isCameraMovingRef.current = false;
+        
+        // Force a render update
+        if (invalidateRef.current) {
+          invalidateRef.current();
+        }
+      }
+    }, 100);
+    
+    return () => clearInterval(interval);
+  }, [isCameraMovingRecently, selectedPoint, selectedClusters]);
+  // ESC key handler to deselect all
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        handleDeselectAll();
+      }
+    };
+    
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [handleDeselectAll]);
 
   // --- Loading / Error / Empty States ---
   if (isLoadingData && data.length === 0 && allBatchIds === null) { return <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin" /></div>; }

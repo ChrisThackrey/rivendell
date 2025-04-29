@@ -460,6 +460,11 @@ Based on these samples, generate a short, descriptive title (maximum 6 words) th
 Title (max 6 words):`;
 
       try {
+        console.log(`Using rule-based title generation for cluster ${cluster.id} to avoid API errors`);
+        // Skip API call and directly use rule-based generation
+        return generateRuleBasedClusterTitle(cluster);
+        
+        /* Temporarily disabled API call to avoid 404 errors
         // Use the shared getApiUrl utility
         const apiUrl = getApiUrl("/api/openai");
 
@@ -499,7 +504,9 @@ Title (max 6 words):`;
             // Use rule-based title generation
             return generateRuleBasedClusterTitle(cluster);
           }
+        */
 
+          /* This section is part of the disabled code
           // Process the response as before
           const data = await response.json();
 
@@ -525,6 +532,7 @@ Title (max 6 words):`;
           clearTimeout(timeoutId);
           throw error; // Re-throw to be caught by the outer catch
         }
+        */
       } catch (error: unknown) {
         // Check if this is an abort error, which is expected so log it differently
         if (

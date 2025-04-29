@@ -61,7 +61,12 @@ export interface DebugCodeFile {
 }
 
 /**
- * Store a code file with embedding in the codefiles table
+ * Interface for SimilarCodeFileResult
+ */
+export interface SimilarCodeFileResult extends CodeFileSearchResult {}
+
+/**
+ * Store a code file with embedding
  */
 export async function storeCodeFileWithEmbedding(
   codeFile: CodeFile,
@@ -218,10 +223,10 @@ export async function storeCodeFileWithEmbedding(
 }
 
 /**
- * Get all code files for a document
+ * Get code files by document ID
  */
 export async function getCodeFilesByDocumentId(
-  documentId: string,
+  documentId: string
 ): Promise<CodeFileRecord[]> {
   try {
     console.log(`getCodeFilesByDocumentId called with ID: ${documentId}`);

@@ -38,10 +38,15 @@ export const DetailsPanel: React.FC<DetailsPanelProps> = ({
             <span className="text-sm text-slate-600">{selectedClusterPoints.length} Points</span>
           </div>
           <div className="space-y-2">
-            {selectedClusterPoints.slice(0, 10).map((point) => (
-              <DetailCard key={point.id} point={point} onSelect={onSelectPoint} />
+            {/* Show all points in the selected cluster(s) */}
+            {selectedClusterPoints.map((point) => (
+              <DetailCard 
+                key={point.id} 
+                point={point} 
+                onSelect={onSelectPoint}
+                isMain={selectedPoint?.id === point.id} 
+              />
             ))}
-            {selectedClusterPoints.length > 10 && <p className="text-xs text-center text-slate-500"> + {selectedClusterPoints.length - 10} more</p>}
           </div>
         </>
       ) : selectedPoint ? (

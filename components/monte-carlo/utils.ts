@@ -11,13 +11,13 @@ export const MODEL_LEGEND_COLORS = {
   "other": "#cbd5e1",   // Light gray (Other)
 };
 
-// Visualization colors exactly matching the screenshot
+// Visualization colors - bright 500-level colors for better visibility in 3D view
 export const MODEL_VIZ_COLORS = {
-  "gpt-4": "#3b82f6",   // Bright blue (GPT-4o)
-  "claude": "#8b5cf6",  // Purple (Claude)
-  "o1": "#22c55e",      // Green (o1)
-  "o3": "#f59e0b",      // Amber (o3-mini)
-  "other": "#64748b",   // Gray (Other)
+  "gpt-4": "#3b82f6",   // blue-500 - Bright blue (GPT-4o)
+  "claude": "#8b5cf6",  // violet-500 - Bright purple (Claude)
+  "o1": "#22c55e",      // green-500 - Bright green (o1)
+  "o3": "#f59e0b",      // amber-500 - Bright amber (o3-mini)
+  "other": "#64748b",   // slate-500 - Medium gray (Other)
 };
 
 // Get color for a model (point colors) - for the 3D view
