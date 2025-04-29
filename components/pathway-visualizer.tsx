@@ -2346,7 +2346,7 @@ export default function PathwayVisualizer({
           const stepsWithLevels = steps.map((step) => ({
             id: step.id,
             level: step.level,
-            stepIndex: step.step_number, // Changed from step_index to step_number
+            stepIndex: step.step_index, // Use step_index instead of step_number
             runId: step.run_id,
             type: step.step_data.type as "accepted" | "secondary" | "rejected",
             decision: step.decision_value,

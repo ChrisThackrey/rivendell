@@ -22,7 +22,7 @@ export type MonteCarloDataPoint = {
   approach: string;
   solutionSummary: string;
   originalContent: string;
-  batchId: string | null;
+  batchId: string;
   cluster?: number;
 };
 
@@ -222,7 +222,7 @@ export async function fetchMonteCarloData(
         runId: metadata.runId || index + 1,
         model: metadata.model || "Unknown",
         temperature: metadata.temperature || 0.7,
-        batchId: document.batch_id || "unknown",
+        batchId: document.batch_id || "unknown" as string,
         position,
         metrics: {
           executionTime: metadata.runtime || "0ms",
