@@ -49,8 +49,7 @@ export default withSentryConfig(nextConfig, {
   // For all available options, see:
   // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
   widenClientFileUpload: true,
-  transpileClientSDK: true,
   tunnelRoute: "/monitoring",
-  hideSourceMaps: true,
+  sourcemaps: { disable: true },
   disableLogger: true,
 });
