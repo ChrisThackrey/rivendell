@@ -3,7 +3,8 @@ import { Geist, Geist_Mono, Inter } from "next/font/google";
 import ErrorBoundary from "@/components/error-boundary";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
-import { Analytics } from '@vercel/analytics/react';
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { CodeFileProvider } from "../components/code-file-provider";
 import ConnectionStyles from "@/components/connection-styles";
 import { NavTabs } from "@/components/nav-tabs";
@@ -36,7 +37,7 @@ export const metadata: Metadata = {
   description: "AI agent platform for creating and managing AI agents",
   icons: {
     icon: [
-      { url: "/favicon.ico" }
+      { url: "/favicon.ico" },
     ],
   },
 };
@@ -56,12 +57,15 @@ export default function RootLayout({
         <NavTabs />
         <ErrorBoundary>
           <CodeFileProvider>
-            <div className="pt-16">{children}</div>
+            <div className="pt-16">
+              {children}
+            </div>
           </CodeFileProvider>
         </ErrorBoundary>
         <Toaster />
         <Analytics />
-        
+        <SpeedInsights />
+
         {/* Script to silence specific console warnings */}
         <Script id="silence-warnings" strategy="afterInteractive">
           {`
