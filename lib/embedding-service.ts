@@ -4,7 +4,7 @@ import {
   type ScoreMetrics,
   type DecisionType,
 } from "./supabase-client";
-import { Json } from "./database.types";
+import { Json } from "./types/database.types";
 import { processAndStoreStepAsDocument } from "./step-service";
 import type { Solution } from "../components/step-carousel";
 import { captureException } from "./error-reporting";
@@ -68,42 +68,59 @@ export async function generateEmbedding(
       body: JSON.stringify({ text: truncatedText }),
       // Add timeout to prevent hanging requests
       signal: AbortSignal.timeout(30000), // 30 second timeout
-    });
+    })
+    .then(async (response) => {
+      if (!response.ok) {
+        try {
+          const errorData = await response.json();
+          console.error("Embedding API error:", errorData);
+        } catch (parseError) {
+          console.error(
+            "Failed to parse embedding API error response:",
+            await response.text(),
+          );
+        }
 
-    if (!response.ok) {
+        console.error(`Embedding API returned status ${response.status}`);
+
+        // Return null to indicate an error during API tests
+        // When in actual use, we'll use the mock embedding as a fallback
+        if (process.env.NODE_ENV === 'test') {
+          return null;
+        } else {
+          // Try to use the mock embedding fallback
+          return createMockEmbedding();
+        }
+      }
+
+      let responseText;
       try {
-        const errorData = await response.json();
-        console.error("Embedding API error:", errorData);
-      } catch (parseError) {
+        // First get the raw text for better error reporting
+        responseText = await response.clone().text();
+
+        // Then attempt to parse as JSON
+        const data = JSON.parse(responseText);
+
+        // Validate the embedding is an array with expected structure
+        if (!data || !Array.isArray(data.embedding)) {
+          console.error("Invalid embedding response structure:", data);
+          
+          // Return null for tests, mock embedding for production
+          if (process.env.NODE_ENV === 'test') {
+            return null;
+          } else {
+            return createMockEmbedding();
+          }
+        }
+
+        return data.embedding;
+      } catch (jsonError) {
         console.error(
-          "Failed to parse embedding API error response:",
-          await response.text(),
+          "Failed to parse embedding API response as JSON:",
+          jsonError,
         );
-      }
-
-      console.error(`Embedding API returned status ${response.status}`);
-
-      // Return null to indicate an error during API tests
-      // When in actual use, we'll use the mock embedding as a fallback
-      if (process.env.NODE_ENV === 'test') {
-        return null;
-      } else {
-        // Try to use the mock embedding fallback
-        return createMockEmbedding();
-      }
-    }
-
-    let responseText;
-    try {
-      // First get the raw text for better error reporting
-      responseText = await response.clone().text();
-
-      // Then attempt to parse as JSON
-      const data = JSON.parse(responseText);
-
-      // Validate the embedding is an array with expected structure
-      if (!data || !Array.isArray(data.embedding)) {
-        console.error("Invalid embedding response structure:", data);
+        console.error("Response status:", response.status);
+        console.error("Raw response text:", responseText?.substring(0, 200));
         
         // Return null for tests, mock embedding for production
         if (process.env.NODE_ENV === 'test') {
@@ -112,23 +129,23 @@ export async function generateEmbedding(
           return createMockEmbedding();
         }
       }
-
-      return data.embedding;
-    } catch (jsonError) {
-      console.error(
-        "Failed to parse embedding API response as JSON:",
-        jsonError,
-      );
-      console.error("Response status:", response.status);
-      console.error("Raw response text:", responseText?.substring(0, 200));
-      
-      // Return null for tests, mock embedding for production
-      if (process.env.NODE_ENV === 'test') {
-        return null;
+    })
+    .catch(error => {
+      // Handle AbortError specifically
+      if (error.name === 'AbortError') {
+        console.error('Embedding API request timed out after 30 seconds');
+        return null; // Return null for tests, mock embedding for production
       } else {
-        return createMockEmbedding();
+        throw error; // Re-throw other errors
       }
+    });
+
+    if (!response) {
+      // Timeout occurred, return null for tests, mock embedding for production
+      return process.env.NODE_ENV === 'test' ? null : createMockEmbedding();
     }
+
+    return response;
   } catch (error) {
     console.error("Error generating embedding:", error);
     
@@ -988,7 +1005,7 @@ export async function storeDocumentWithEmbedding(
           .from("documents")
           .update({
             content,
-            embedding: finalEmbedding,
+            embedding: finalEmbedding as unknown as string, // Cast embedding to string
             metadata: metadata as unknown as Json,
           })
           .eq("id", existingDocument.id)
@@ -1010,7 +1027,7 @@ export async function storeDocumentWithEmbedding(
           .from("documents")
           .insert({
             content,
-            embedding: finalEmbedding,
+            embedding: finalEmbedding as unknown as string, // Cast embedding to string
             metadata: metadata as unknown as Json,
             batch_id: finalBatchId,
           })
@@ -1114,7 +1131,7 @@ export async function searchSimilarDocuments(
 
     // Call the match_documents function to find similar documents
     const { data, error } = await supabase.rpc("match_documents", {
-      query_embedding: embedding,
+      query_embedding: embedding as unknown as string, // Cast embedding to string
       match_threshold: matchThreshold,
       match_count: matchCount,
     });
@@ -1201,7 +1218,7 @@ export async function updateMissingEmbeddings(
             // Update the document with the new embedding
             const { error: updateError } = await supabase
               .from("documents")
-              .update({ embedding })
+              .update({ embedding: embedding as unknown as string }) // Cast embedding to string
               .eq("id", doc.id);
 
             if (updateError) {
@@ -1254,25 +1271,26 @@ export async function isPgVectorInstalled(): Promise<boolean> {
       // If the RPC fails, try a direct approach
       try {
         // Use a direct SQL approach to check for the vector type
-        const { error: directError } = await supabase
-          .from('_non_existent_table_')
-          .select('*')
-          .limit(1)
-          .or(`id.eq.0,SELECT EXISTS (
-            SELECT 1 FROM pg_extension WHERE extname = 'vector'
-          )`);
-          
-        // If we got an error that's not about the non-existent table, 
-        // something went wrong with the query
-        if (directError && !directError.message.includes('_non_existent_table_')) {
-          console.error("Error with direct pgvector check:", directError);
+        const { data: directData, error: directError } = await supabase
+          .rpc('list_extensions'); // Use list_extensions instead of a query
+        
+        if (directError) {
+          console.error("Error with direct pgvector check using list_extensions:", directError);
           return false;
         }
-        
-        // We can't reliably determine from this approach, so we'll assume
-        // it might be installed and proceed with caution
-        console.log("Using optimistic assumption for pgvector extension availability");
-        return true;
+
+        // Check if vector is in the list of installed extensions
+        const hasVectorDirect = Array.isArray(directData) && 
+          directData.some(ext => ext.extname === 'vector');
+
+        if (hasVectorDirect) {
+          console.log("Direct check confirms pgvector extension is installed");
+          return true;
+        } else {
+          console.log("Direct check confirms pgvector extension is NOT installed");
+          return false;
+        }
+
       } catch (directError) {
         console.error("Error with direct pgvector check:", directError);
         return false;
@@ -1281,7 +1299,7 @@ export async function isPgVectorInstalled(): Promise<boolean> {
     
     // Check if vector is in the list of installed extensions
     const hasVector = Array.isArray(data) && 
-      data.some(ext => (ext.name === 'vector' || ext.extname === 'vector'));
+      data.some(ext => ext.extname === 'vector'); // Use extname, not name
     
     if (hasVector) {
       console.log("pgvector extension is installed");
@@ -1369,7 +1387,7 @@ export async function verifyEmbeddingSystem(): Promise<boolean> {
       const { data: matchResult, error: matchError } = await supabase.rpc(
         "match_documents",
         {
-          query_embedding: normalizedEmbedding,
+          query_embedding: normalizedEmbedding as unknown as string, // Cast embedding to string
           match_threshold: 0.5,
           match_count: 3,
         },

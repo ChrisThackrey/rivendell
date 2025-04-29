@@ -9,7 +9,7 @@ import {
   storeCodeFileWithEmbedding,
 } from "../../../lib/codefile-service";
 import * as crypto from "crypto";
-import { type Json } from "../../../lib/database.types";
+import { type Json } from "../../../lib/types/database.types";
 
 // Import ensureDocumentExists explicitly
 import { ensureDocumentExists } from "../../../lib/document-service";

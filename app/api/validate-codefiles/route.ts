@@ -4,7 +4,7 @@ import { supabase } from "../../../lib/supabase-client";
 import { captureException } from "../../../lib/error-reporting";
 import { storeCodeFileWithEmbedding } from "../../../lib/codefile-service";
 import { ensureDocumentExists } from "../../../lib/document-service";
-import { type Json } from "../../../lib/database.types";
+import { type Json } from "../../../lib/types/database.types";
 
 // Define metadata type to avoid TypeScript errors
 interface DocumentMetadata {

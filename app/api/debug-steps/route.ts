@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase-client";
-import { Json } from "@/lib/database.types";
+import { type Json } from "@/lib/types/database.types";
+import type { DecisionType, ScoreMetrics } from "@/lib/supabase-client";
 
 type StepData = {
   title?: string;
@@ -23,13 +24,13 @@ type StepData = {
 type Step = {
   id: string;
   batch_id: string;
-  step_number: number;
+  document_id: string;
+  run_id: number;
+  step_index: number;
   level: number;
-  run_id: number | null;
+  decision_value: DecisionType;
   step_data: Json;
   created_at: string;
-  metadata: Json | null;
-  decision_value: string | null;
 };
 
 // Add OPTIONS handler for CORS preflight
@@ -140,12 +141,12 @@ export async function GET(request: NextRequest) {
     const highestScoringSteps = Object.keys(stepsByLevel).map((levelStr) => {
       const levelSteps = stepsByLevel[levelStr];
 
-      // Sort steps by score (calculated from metadata.scores)
+      // Sort steps by score (calculated from step_data.scores)
       return levelSteps.sort((a, b) => {
-        const metadataA = a.metadata || {};
-        const metadataB = b.metadata || {};
-        const scoresA = metadataA.scores || {};
-        const scoresB = metadataB.scores || {};
+        const stepDataA = (a.step_data || {}) as Record<string, any>;
+        const stepDataB = (b.step_data || {}) as Record<string, any>;
+        const scoresA = stepDataA.scores || {};
+        const scoresB = stepDataB.scores || {};
 
         // Calculate total score (sum of all score metrics)
         const totalScoreA = Object.values(scoresA).reduce(
@@ -177,20 +178,20 @@ export async function GET(request: NextRequest) {
           highestScoringSteps?.map((step) => ({
             id: step.id,
             level: step.level,
-            step_number: step.step_number,
+            step_number: step.step_index,
             step_data: {
               title: (step.step_data as StepData)?.title || "Unknown",
               type: (step.step_data as StepData)?.type || "unknown",
             },
             metadata: {
-              scores: step.metadata?.scores || {},
+              scores: ((step.step_data as Record<string, any>)?.scores || {}) as ScoreMetrics
             },
           })) || [],
         sampleSteps:
           steps?.slice(0, 3)?.map((step: Step) => ({
             id: step.id,
             level: step.level,
-            step_number: step.step_number,
+            step_number: step.step_index,
             step_data: {
               title: (step.step_data as StepData)?.title || "Unknown",
               type: (step.step_data as StepData)?.type || "unknown",

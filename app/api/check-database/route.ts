@@ -38,7 +38,7 @@ export async function GET() {
     const vectorInstalled = await isPgVectorInstalled();
     
     // Try to check available extensions
-    let extensionsList = [];
+    let extensionsList: { extname: string }[] = [];
     try {
       const { data: extensions, error: extError } = await supabase.rpc('list_extensions');
       
@@ -71,7 +71,7 @@ export async function GET() {
         for (const threshold of thresholds) {
           try {
             const { data, error } = await supabase.rpc("match_documents", {
-              query_embedding: normalizedEmbedding,
+              query_embedding: normalizedEmbedding as unknown as string,
               match_threshold: threshold,
               match_count: 5
             });
@@ -153,7 +153,7 @@ export async function POST(request: Request) {
     
     // Try the vector search function  
     const { data, error } = await supabase.rpc("match_documents", {
-      query_embedding: normalizedEmbedding,
+      query_embedding: normalizedEmbedding as unknown as string,
       match_threshold: threshold,
       match_count: count
     });

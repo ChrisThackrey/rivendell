@@ -4,7 +4,7 @@ import { searchSimilarDocuments } from "@/lib/embedding-service";
 import { generateEmbedding } from "@/lib/embedding-service";
 import { supabase } from "@/lib/supabase-client";
 import { captureException } from "@/lib/error-reporting";
-import { type Json } from "@/lib/database.types";
+import { type Json } from "@/lib/types/database.types";
 import { type DocumentMetadata } from "@/lib/supabase-client";
 
 // Define types for document step processing

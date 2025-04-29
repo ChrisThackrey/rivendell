@@ -101,7 +101,7 @@ export async function POST() {
         .from("documents")
         .insert({
           content: doc.content,
-          embedding,
+          embedding: embedding as unknown as string,
           metadata: doc.metadata,
           batch_id: batchId
         })
@@ -139,7 +139,7 @@ export async function POST() {
                 filename: codeFile.filename,
                 language: codeFile.language || "plaintext",
                 code_content: codeFile.code,
-                embedding: codeEmbedding,
+                embedding: codeEmbedding as unknown as string,
                 metadata: { 
                   sourceType: "test",
                   createdAt: new Date().toISOString()

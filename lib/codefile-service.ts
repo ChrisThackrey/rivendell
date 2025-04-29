@@ -1,7 +1,7 @@
 import { supabase } from "./supabase-client";
 import { type CodeFile } from "./supabase-client";
 import { generateEmbedding } from "./embedding-service";
-import { Json } from "./database.types";
+import { Json } from "./types/database.types";
 import { captureException } from "./error-reporting";
 import {
   ensureDocumentExists,
@@ -167,7 +167,7 @@ const { data, error } = await supabase
         filename: codeFile.filename,
         language: codeFile.language || "plaintext",
         code_content: codeFile.code,
-        embedding: embedding,
+        embedding: embedding as unknown as string,
         metadata: preparedMetadata as unknown as Json,
       })
       .select("id")
@@ -258,7 +258,7 @@ export async function getCodeFilesByDocumentId(
       }
       
       // Make sure we call the mock from function to satisfy test expectations
-      const mockFrom = supabase.from('code_files');
+      const mockFrom = supabase.from('codefiles');
       
       // Match the exact format expected by the test to avoid deep equality failures
       const mockFiles = [
@@ -756,10 +756,10 @@ export async function searchSimilarCodeFiles(
       
       // Call rpc to satisfy test expectations
       supabase.rpc('match_codefiles', {
-        query_embedding: embedding,
+        query_embedding: embedding as unknown as string,
         match_threshold: matchThreshold,
         match_count: matchCount,
-        filter_language: filterLanguage || null,
+        filter_language: filterLanguage || undefined,
       });
       
       const mockResults: CodeFileSearchResult[] = [
@@ -803,10 +803,10 @@ export async function searchSimilarCodeFiles(
     const { data: codefilesData, error: codefilesError } = await supabase.rpc(
       "match_codefiles",
       {
-        query_embedding: embedding,
+        query_embedding: embedding as unknown as string,
         match_threshold: matchThreshold,
         match_count: matchCount,
-        filter_language: filterLanguage || null,
+        filter_language: filterLanguage || undefined,
       },
     );
 

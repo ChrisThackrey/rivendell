@@ -5,7 +5,7 @@ import {
   type ScoreMetrics,
   type CodeFile,
 } from "./supabase-client";
-import { Json } from "./database.types";
+import { Json } from "./types/database.types";
 import type { Solution } from "../components/step-carousel";
 import { captureException } from "./error-reporting";
 
@@ -15,8 +15,9 @@ import { captureException } from "./error-reporting";
 export interface StepData {
   id: string;
   batch_id: string;
+  document_id: string;
   run_id: number;
-  step_number: number;
+  step_index: number;
   level: number;
   decision_value: DecisionType;
   step_data: {
@@ -38,7 +39,6 @@ export interface StepData {
     codeFiles?: CodeFile[];
   };
   created_at: string;
-  metadata?: Record<string, any>;
 }
 
 /**
@@ -432,6 +432,19 @@ export async function getStepsByBatchId(batch_id: string): Promise<StepData[]> {
       return [];
     }
 
+    // Define the expected return type from the RPC based on SQL schema
+    type RpcStep = {
+      id: string;
+      batch_id: string;
+      document_id: string;
+      run_id: number;
+      step_index: number;
+      level: number;
+      decision_value: DecisionType;
+      step_data: Json;
+      created_at: string;
+    };
+
     if (data && data.length > 0) {
       // Log the first result to see its structure
       console.log("First step data from RPC:", data[0]);
@@ -451,7 +464,8 @@ export async function getStepsByBatchId(batch_id: string): Promise<StepData[]> {
       console.log("No steps found for batch ID:", batch_id);
     }
 
-    return (data || []) as StepData[];
+    // Explicitly cast the result to match the expected structure
+    return (data || []) as unknown as StepData[];
   } catch (error) {
     captureException(error, {
       context: "Error in getStepsByBatchId",
@@ -495,7 +509,7 @@ export function convertStepToSolution(step: StepData): Solution {
     codeQuality: 5,
   };
 
-  // Extract codeFiles from step_data if present or from metadata
+  // Extract codeFiles from step_data 
   let codeFiles = step.step_data.codeFiles;
   console.log(
     `Step ${step.id} step_data.codeFiles:`,
@@ -504,75 +518,41 @@ export function convertStepToSolution(step: StepData): Solution {
       : "No codeFiles in step_data",
   );
 
-  // If codeFiles is not in step_data, try to get it from metadata
-  if (!codeFiles || !Array.isArray(codeFiles) || codeFiles.length === 0) {
-    console.log(`Step ${step.id} checking metadata for codeFiles...`);
-    // Check if we have document metadata we can access
-    if (step.metadata && typeof step.metadata === "object") {
-      // Get metadata codeFiles
-      const docMetadata = step.metadata as any;
-      console.log(`Step ${step.id} metadata keys:`, Object.keys(docMetadata));
-      const metadataCodeFiles = docMetadata.codeFiles;
-
-      if (metadataCodeFiles) {
-        console.log(
-          `Step ${step.id} found codeFiles in metadata:`,
-          Array.isArray(metadataCodeFiles)
-            ? `${metadataCodeFiles.length} files`
-            : "not an array",
-        );
-      } else {
-        console.log(`Step ${step.id} no codeFiles found in metadata`);
-      }
-
-      if (metadataCodeFiles && Array.isArray(metadataCodeFiles)) {
-        codeFiles = metadataCodeFiles;
-        console.log(
-          `Found ${codeFiles.length} code files in metadata for step ${step.id}`,
-        );
-
-        // Log first code file for debugging
-        if (codeFiles.length > 0) {
-          console.log(`First code file for step ${step.id}:`, {
-            filename: codeFiles[0].filename,
-            language: codeFiles[0].language,
-            codeLength: codeFiles[0].code ? codeFiles[0].code.length : 0,
-          });
-        }
-      }
-    } else {
-      console.log(`Step ${step.id} metadata is not available or not an object`);
-    }
-  }
-
-  // Final logging of code files result
-  console.log(
-    `Step ${step.id} final codeFiles:`,
-    codeFiles && Array.isArray(codeFiles)
-      ? `${codeFiles.length} files found`
-      : "No code files",
-  );
-
-  // Extract fileTree from metadata if present
+  // Extract fileTree from step_data if present
   let fileTree: string | undefined;
-  if (step.metadata && typeof step.metadata === "object") {
-    // Try to get fileTree directly
-    const docMetadata = step.metadata as any;
-    fileTree = docMetadata.fileTree;
+  if (step.step_data && typeof step.step_data === "object") {
+    // Try to get fileTree directly from step_data
+    const stepData = step.step_data as any;
+    fileTree = stepData.fileTree;
 
     if (fileTree) {
       console.log(
-        `Found fileTree in metadata for step ${step.id}:`,
+        `Found fileTree in step_data for step ${step.id}:`,
         fileTree.substring(0, 30) + "...",
       );
     } else {
-      console.log(`No fileTree found in metadata for step ${step.id}`);
+      console.log(`No fileTree found in step_data for step ${step.id}`);
+    }
+  }
+
+  // If codeFiles is still missing, check step_data for a top-level code property (legacy format?)
+  if (!codeFiles || !Array.isArray(codeFiles) || codeFiles.length === 0) {
+    const stepDataAny = step.step_data as any;
+    if (stepDataAny?.code && stepDataAny?.filename) {
+      console.log(`Found legacy code/filename structure in step_data for step ${step.id}`);
+      codeFiles = [
+        {
+          filename: stepDataAny.filename,
+          language: stepDataAny.language || 'plaintext',
+          code: stepDataAny.code,
+        },
+      ];
     }
   }
 
   return {
     id: step.id,
-    title: step.step_data.title || `Step ${step.step_number}`,
+    title: step.step_data.title || `Step ${step.step_index}`,
     description: step.step_data.description || "No description available",
     type: step.step_data.type,
     model: step.step_data.model || "Unknown Model",
@@ -582,21 +562,20 @@ export function convertStepToSolution(step: StepData): Solution {
       models: [step.step_data.model || "Unknown"],
     },
     runId: step.run_id,
-    stepIndex: step.step_number,
+    stepIndex: step.step_index,
     batchId: step.batch_id,
     codeFiles: codeFiles || undefined,
-    fileTree: fileTree, // Add fileTree field to solution
+    fileTree: fileTree,
     embeddings: {
-      documentId: step.id, // Use the document ID directly
+      documentId: step.id,
       metadata: {
         decision: step.decision_value,
-        stepNumber: step.step_number,
+        stepNumber: step.step_index,
         stepTitle: step.step_data.title,
         stepDescription: step.step_data.description,
         model: step.step_data.model,
-        fileTree: fileTree, // Include fileTree in metadata too for redundancy
+        fileTree: fileTree,
         scores: {
-          // Default scores based on decision type
           accuracy:
             step.decision_value === "RECOMMENDED"
               ? 85
@@ -634,7 +613,6 @@ export function convertStepToSolution(step: StepData): Solution {
                 ? 65
                 : 45,
         },
-        // Add metrics directly to metadata for easy access
         metrics: metrics,
       },
     },
@@ -650,7 +628,7 @@ export function groupStepsByStepIndex(
   const grouped: Record<number, Solution[]> = {};
 
   steps.forEach((step) => {
-    const stepIndex = step.step_number;
+    const stepIndex = step.step_index;
 
     if (!grouped[stepIndex]) {
       grouped[stepIndex] = [];

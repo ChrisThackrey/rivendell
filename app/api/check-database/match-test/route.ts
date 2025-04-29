@@ -25,7 +25,7 @@ export async function GET() {
       console.log(`Testing with threshold: ${threshold}`);
       
       const { data, error } = await supabase.rpc("match_documents", {
-        query_embedding: normalizedEmbedding,
+        query_embedding: normalizedEmbedding as unknown as string,
         match_threshold: threshold,
         match_count: 10
       });

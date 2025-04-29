@@ -6,7 +6,7 @@ import {
   extractCodeFilesFromDocument,
   storeCodeFileWithEmbedding,
 } from "../../../lib/codefile-service";
-import { Json } from "../../../lib/database.types";
+import { type Json } from "../../../lib/types/database.types";
 
 // Schema for validating the request
 const FixJsonParsingSchema = z.object({

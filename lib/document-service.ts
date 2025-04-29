@@ -1,7 +1,7 @@
 import { supabase } from "./supabase-client";
 import { captureException } from "./error-reporting";
 import * as crypto from "crypto";
-import { Json } from "./database.types";
+import { Json } from "./types/database.types";
 
 /**
  * Generate a deterministic UUID v5 from any string input
