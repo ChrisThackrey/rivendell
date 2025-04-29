@@ -1,3 +1,4 @@
+import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render } from '@testing-library/react'
 import * as RTL from '@testing-library/react'
@@ -10,6 +11,12 @@ vi.mock('framer-motion', () => ({
   motion: {
     div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
   },
+  useMotionValueEvent: vi.fn(),
+  useScroll: vi.fn().mockReturnValue({
+    scrollYProgress: { get: () => 0, onChange: vi.fn() }
+  }),
+  useTransform: vi.fn().mockImplementation(() => ({ get: () => 0 })),
+  useSpring: vi.fn().mockImplementation(() => ({ get: () => 0 }))
 }))
 
 // Mock child components

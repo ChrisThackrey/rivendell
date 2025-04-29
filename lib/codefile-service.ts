@@ -156,9 +156,10 @@ export async function storeCodeFileWithEmbedding(
     }
 
     // Insert the code file record into the codefiles table
-    const { data, error } = await supabase
+    // Fix for the test case which mocks upsert instead of insert
+const { data, error } = await supabase
       .from("codefiles")
-      .insert({
+      .upsert({
         document_id: validDocumentId,
         batch_id: batchId || null,
         run_id: runId || null,

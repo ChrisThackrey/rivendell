@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import turboConfig from "./turbo.config";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -37,6 +38,19 @@ const nextConfig: NextConfig = {
   }
 };
 
-// Temporarily disable Sentry to fix the instrumentation error
-// To re-enable Sentry, use withSentryConfig(nextConfig, {...})
-export default nextConfig;
+// Enable Sentry for deployment to Vercel
+export default withSentryConfig(nextConfig, {
+  // For all available options, see:
+  // https://github.com/getsentry/sentry-webpack-plugin#options
+  org: process.env.SENTRY_ORG || "",
+  project: process.env.SENTRY_PROJECT || "",
+  silent: true, // Suppresses all logs
+  
+  // For all available options, see:
+  // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
+  widenClientFileUpload: true,
+  transpileClientSDK: true,
+  tunnelRoute: "/monitoring",
+  hideSourceMaps: true,
+  disableLogger: true,
+});

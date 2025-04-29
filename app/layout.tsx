@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Inter } from "next/font/google";
 import ErrorBoundary from "@/components/error-boundary";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { Analytics } from '@vercel/analytics/react';
 import { CodeFileProvider } from "../components/code-file-provider";
 import ConnectionStyles from "@/components/connection-styles";
 import { NavTabs } from "@/components/nav-tabs";
@@ -59,6 +60,7 @@ export default function RootLayout({
           </CodeFileProvider>
         </ErrorBoundary>
         <Toaster />
+        <Analytics />
         
         {/* Script to silence specific console warnings */}
         <Script id="silence-warnings" strategy="afterInteractive">

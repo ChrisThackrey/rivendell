@@ -24,18 +24,18 @@ export const MODEL_VIZ_COLORS = {
 export const getModelColor = (model: string): THREE.Color => {
   const modelLower = model.toLowerCase().trim()
   if (modelLower.includes("gpt-4o") || modelLower.includes("gpt4o") || modelLower.includes("gpt-4")) {
-    return new THREE.Color(MODEL_VIZ_COLORS["gpt-4"])
+    return new THREE.Color(MODEL_LEGEND_COLORS["gpt-4"])
   }
   if (modelLower.includes("claude-sonnet") || modelLower.includes("claude")) {
-    return new THREE.Color(MODEL_VIZ_COLORS.claude)
+    return new THREE.Color(MODEL_LEGEND_COLORS.claude)
   }
   if (modelLower.includes("o1")) {
-    return new THREE.Color(MODEL_VIZ_COLORS.o1)
+    return new THREE.Color(MODEL_LEGEND_COLORS.o1)
   }
   if (modelLower.includes("o3-mini") || modelLower.includes("o3")) {
-    return new THREE.Color(MODEL_VIZ_COLORS.o3)
+    return new THREE.Color(MODEL_LEGEND_COLORS.o3)
   }
-  return new THREE.Color(MODEL_VIZ_COLORS.other)
+  return new THREE.Color(MODEL_LEGEND_COLORS.other)
 }
 
 // Get the legend color for a model (for UI display)

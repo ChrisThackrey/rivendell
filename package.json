@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "deploy": "node scripts/deploy-vercel.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
@@ -39,6 +40,7 @@
     "@sentry/tracing": "^7.120.3",
     "@supabase/supabase-js": "^2.49.4",
     "@uidotdev/usehooks": "^2.4.1",
+    "@vercel/analytics": "^1.5.0",
     "chalk": "^5.4.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -94,6 +96,7 @@
     "tailwindcss-animate": "^1.0.7",
     "ts-jest": "^29.3.1",
     "typescript": "^5",
+    "vercel": "^41.6.2",
     "vitest": "^3.1.1",
     "vitest-mock-extended": "^3.1.0"
   }
