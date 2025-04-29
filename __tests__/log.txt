@@ -1,0 +1,274 @@
+
+> rivendell@0.1.0 test
+> vitest run
+
+
+ RUN  v3.1.2 /Users/thakr/.local/dev/rivendell
+
+ ✓ __tests__/basic.test.ts (3 tests) 2ms
+stdout | __tests__/lib/codefile-service.test.ts > CodeFile Service Tests > getCodeFilesByDocumentId > should retrieve code files for a document
+getCodeFilesByDocumentId called with ID: test-document-id
+
+stdout | __tests__/lib/codefile-service.test.ts > CodeFile Service Tests > getCodeFilesByDocumentId > should retrieve code files for a document
+Found 2 code files for document test-document-id
+
+stdout | __tests__/lib/codefile-service.test.ts > CodeFile Service Tests > getCodeFilesByDocumentId > should handle database error when retrieving code files
+getCodeFilesByDocumentId called with ID: test-document-id
+
+stdout | __tests__/lib/codefile-service.test.ts > CodeFile Service Tests > getCodeFilesByDocumentId > should handle database error when retrieving code files
+Found 2 code files for document test-document-id
+
+stdout | __tests__/lib/codefile-service.test.ts > CodeFile Service Tests > searchSimilarCodeFiles > should search for similar code files
+Searching for similar code files with threshold 0.8 and count 3
+
+stdout | __tests__/lib/codefile-service.test.ts > CodeFile Service Tests > searchSimilarCodeFiles > should search for similar code files
+Search found 2 similar code files in codefiles table
+Filtered out 2 placeholder files from codefiles table results
+Final search results: 0 meaningful code files
+
+ ❯ __tests__/lib/codefile-service.test.ts (12 tests | 3 failed) 13ms
+   ✓ CodeFile Service Tests > storeCodeFileWithEmbedding > should store a code file with embedding 1ms
+   ✓ CodeFile Service Tests > storeCodeFileWithEmbedding > should handle a converted document ID 0ms
+   ✓ CodeFile Service Tests > storeCodeFileWithEmbedding > should handle empty code content 0ms
+   ✓ CodeFile Service Tests > storeCodeFileWithEmbedding > should handle database errors 0ms
+   × CodeFile Service Tests > getCodeFilesByDocumentId > should retrieve code files for a document 5ms
+     → expected [ { id: 'file1', …(6) }, …(1) ] to deeply equal [ { id: 'file1', …(3) }, …(1) ]
+   × CodeFile Service Tests > getCodeFilesByDocumentId > should handle database error when retrieving code files 2ms
+     → promise resolved "[ { id: 'file1', …(6) }, …(1) ]" instead of rejecting
+   × CodeFile Service Tests > searchSimilarCodeFiles > should search for similar code files 1ms
+     → expected [] to have a length of 2 but got +0
+   ✓ CodeFile Service Tests > searchSimilarCodeFiles > should handle embedding generation failure during search 1ms
+   ✓ CodeFile Service Tests > extractCodeFilesFromDocument > should extract code files from document metadata 1ms
+   ✓ CodeFile Service Tests > migrateCodeFilesFromDocument > should migrate code files from a document (simplified test) 0ms
+   ✓ CodeFile Service Tests > getAllCodeFilesByDocumentId > should fetch code files from both table and metadata (simplified test) 0ms
+   ✓ CodeFile Service Tests > getAllCodeFilesByDocumentId > should handle invalid document ID 0ms
+stdout | __tests__/lib/embedding-service.test.ts
+Starting embedding system initialization...
+
+stdout | __tests__/lib/integration-tests.test.ts
+Starting embedding system initialization...
+
+stdout | __tests__/lib/integration.test.ts
+Starting embedding system initialization...
+
+ ✓ __tests__/components/monte-carlo/utils.test.ts (19 tests) 14ms
+stdout | __tests__/lib/integration.test.ts > Embedding Service Tests > storeDocumentWithEmbedding > should store a document with embedding successfully
+TEST MODE: Using test mock behavior
+Attempting to store document with batch ID: test-batch-id
+
+stdout | __tests__/lib/embedding-service.test.ts > Embedding Service Tests > storeDocumentWithEmbedding > should store a document with embedding successfully
+TEST MODE: Using test mock behavior
+Attempting to store document with batch ID: test-batch-id
+
+stdout | __tests__/lib/integration.test.ts > Embedding Service Tests > searchSimilarDocuments > should search for similar documents successfully
+Searching for similar documents with threshold 0.8 and count 5
+
+stdout | __tests__/lib/integration.test.ts > Embedding Service Tests > searchSimilarDocuments > should search for similar documents successfully
+Search found 1 similar documents
+
+stdout | __tests__/lib/integration-tests.test.ts > Embedding Service Tests > storeDocumentWithEmbedding > should store a document with embedding successfully
+TEST MODE: Using test mock behavior
+Attempting to store document with batch ID: test-batch-id
+
+stdout | __tests__/lib/integration-tests.test.ts > Embedding Service Tests > searchSimilarDocuments > should search for similar documents successfully
+Searching for similar documents with threshold 0.8 and count 5
+
+stdout | __tests__/lib/integration-tests.test.ts > Embedding Service Tests > searchSimilarDocuments > should search for similar documents successfully
+Search found 1 similar documents
+
+stdout | __tests__/lib/embedding-service.test.ts > Embedding Service Tests > searchSimilarDocuments > should search for similar documents successfully
+Searching for similar documents with threshold 0.8 and count 5
+
+stdout | __tests__/lib/embedding-service.test.ts > Embedding Service Tests > searchSimilarDocuments > should search for similar documents successfully
+Search found 1 similar documents
+
+ ✓ __tests__/lib/integration.test.ts (5 tests) 6ms
+ ✓ __tests__/lib/integration-tests.test.ts (5 tests) 6ms
+ ✓ __tests__/lib/embedding-service.test.ts (5 tests) 6ms
+ ❯ __tests__/components/monte-carlo/model-filtering.test.tsx (4 tests | 2 failed) 26ms
+   ✓ Monte Carlo Model Filtering > should render the model legend with correct model types 14ms
+   × Monte Carlo Model Filtering > should show "Show All Points" button when a model filter is active 8ms
+     → Unable to find an element with the text: Show All Points. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mdata-testid[39m=[32m"model-legend"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"model-types"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [0mGPT-4o (1)[0m
+        [36m</div>[39m
+        [36m<div>[39m
+          [0mClaude (1)[0m
+        [36m</div>[39m
+        [36m<div>[39m
+          [0mo1 (1)[0m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+   × Monte Carlo Model Filtering > should clear the model filter when "Show All Points" is clicked 2ms
+     → Unable to find an element with the text: Show All Points. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mdata-testid[39m=[32m"model-legend"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"model-types"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [0mGPT-4o (1)[0m
+        [36m</div>[39m
+        [36m<div>[39m
+          [0mClaude (1)[0m
+        [36m</div>[39m
+        [36m<div>[39m
+          [0mo1 (1)[0m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+   ✓ Monte Carlo Model Filtering > should display correct counts for each model type 1ms
+ ✓ __tests__/components/ui/test-metadata.test.tsx (8 tests) 112ms
+ ❯ __tests__/components/solution-card.test.tsx (4 tests | 4 failed) 15ms
+   × SolutionCard > should render with no code files 10ms
+     → React is not defined
+   × SolutionCard > should render with empty code files 2ms
+     → React is not defined
+   × SolutionCard > should render with valid code files 1ms
+     → React is not defined
+   × SolutionCard > should display file tree when provided 1ms
+     → React is not defined
+ ❯ __tests__/components/ui/code-block.test.tsx (4 tests | 1 failed) 1059ms
+   ✓ CodeBlock Components > CodeBlockCode > should handle empty code properly 30ms
+   ✓ CodeBlock Components > CodeBlockCode > should handle undefined code properly 7ms
+   × CodeBlock Components > CodeBlockCode > should handle whitespace-only code properly 1015ms
+     → Unable to find an element with the text: // No code content available. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"relative"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33maria-label[39m=[32m"Copy code to clipboard"[39m
+        [33mclass[39m=[32m"absolute right-3 top-3 p-1.5 rounded-md bg-background/80 hover:bg-background border border-border shadow-sm hover:shadow-md transition-all duration-200 backdrop-blur-sm z-10"[39m
+        [33mdata-state[39m=[32m"closed"[39m
+        [33mtabindex[39m=[32m"0"[39m
+      [36m>[39m
+        [36m<svg[39m
+          [33mclass[39m=[32m"lucide lucide-copy h-4 w-4 text-muted-foreground hover:text-foreground"[39m
+          [33mfill[39m=[32m"none"[39m
+          [33mheight[39m=[32m"24"[39m
+          [33mstroke[39m=[32m"currentColor"[39m
+          [33mstroke-linecap[39m=[32m"round"[39m
+          [33mstroke-linejoin[39m=[32m"round"[39m
+          [33mstroke-width[39m=[32m"2"[39m
+          [33mviewBox[39m=[32m"0 0 24 24"[39m
+          [33mwidth[39m=[32m"24"[39m
+          [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+        [36m>[39m
+          [36m<rect[39m
+            [33mheight[39m=[32m"14"[39m
+            [33mrx[39m=[32m"2"[39m
+            [33mry[39m=[32m"2"[39m
+            [33mwidth[39m=[32m"14"[39m
+            [33mx[39m=[32m"8"[39m
+            [33my[39m=[32m"8"[39m
+          [36m/>[39m
+          [36m<path[39m
+            [33md[39m=[32m"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"[39m
+          [36m/>[39m
+        [36m</svg>[39m
+      [36m</button>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"w-full overflow-y-auto max-h-[600px] text-[13px] relative [&>pre]:px-8 [&>pre]:py-4 [&>pre]:overflow-y-auto [&>pre]:max-h-[580px] [&>pre]:leading-none [&>pre]:space-y-0 [&_.line]:leading-none [&_.line]:my-0 [&_.line]:py-0 [&_.line]:h-[1.2em] [&_.line]:block [&_.line]:whitespace-pre [&_.line-numbered]:leading-none [&_.line-numbered]:my-0 [&_.line-numbered]:py-0 [&_.line-numbered]:h-[1.2em] [&_.line-numbered]:whitespace-pre [&_*]:tracking-normal [&_*]:word-spacing-normal [&>pre.with-line-numbers]:pl-20 [&>pre.with-line-numbers]:relative [&>pre.with-line-numbers]:before:content-[''] [&>pre.with-line-numbers]:before:absolute [&>pre.with-line-numbers]:before:left-0 [&>pre.with-line-numbers]:before:top-4 [&>pre.with-line-numbers]:before:bottom-4 [&>pre.with-line-numbers]:before:w-12 [&>pre.with-line-numbers]:before:border-r [&>pre.with-line-numbers]:before:border-border/50 [&>pre.with-line-numbers]:before:bg-muted/30 [&_.line-numbered]:relative [&_.line-numbered]:pl-16 [&_.line-numbered]:block [&_.line-numbered]:before:absolute [&_.line-numbered]:before:left-0 [&_.line-numbered]:before:w-12 [&_.line-numbered]:before:content-[attr(data-line-number)] [&_.line-numbered]:before:text-right [&_.line-numbered]:before:text-muted-foreground/70 [&_.line-numbered:hover]:before:bg-muted/50 [&_.line-numbered:hover]:bg-muted/10 max-w-full border-0"[39m
+        [36m>[39m
+          [0m
+    [0m
+          [0m
+  [0m
+          [36m<pre>[39m
+            [36m<code>[39m
+              [0mMock highlighted code[0m
+            [36m</code>[39m
+          [36m</pre>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"relative"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33maria-label[39m=[32m"Copy code to clipboard"[39m
+        [33mclass[39m=[32m"absolute right-3 top-3 p-1.5 rounded-md bg-background/80 hover:bg-background border border-border shadow-sm hover:shadow-md transition-all duration-200 backdrop-blur-sm z-10"[39m
+        [33mdata-state[39m=[32m"closed"[39m
+        [33mtabindex[39m=[32m"0"[39m
+      [36m>[39m
+        [36m<svg[39m
+          [33mclass[39m=[32m"lucide lucide-copy h-4 w-4 text-muted-foreground hover:text-foreground"[39m
+          [33mfill[39m=[32m"none"[39m
+          [33mheight[39m=[32m"24"[39m
+          [33mstroke[39m=[32m"currentColor"[39m
+          [33mstroke-linecap[39m=[32m"round"[39m
+          [33mstroke-linejoin[39m=[32m"round"[39m
+          [33mstroke-width[39m=[32m"2"[39m
+          [33mviewBox[39m=[32m"0 0 24 24"[39m
+          [33mwidth[39m=[32m"24"[39m
+          [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+        [36m>[39m
+          [36m<rect[39m
+            [33mheight[39m=[32m"14"[39m
+            [33mrx[39m=[32m"2"[39m
+            [33mry[39m=[32m"2"[39m
+            [33mwidth[39m=[32m"14"[39m
+            [33mx[39m=[32m"8"[39m
+            [33my[39m=[32m"8"[39m
+          [36m/>[39m
+          [36m<path[39m
+            [33md[39m=[32m"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"[39m
+          [36m/>[39m
+        [36m</svg>[39m
+      [36m</button>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"w-full overflow-y-auto max-h-[600px] text-[13px] relative [&>pre]:px-8 [&>pre]:py-4 [&>pre]:overflow-y-auto [&>pre]:max-h-[580px] [&>pre]:leading-none [&>pre]:space-y-0 [&_.line]:leading-none [&_.line]:my-0 [&_.line]:py-0 [&_.line]:h-[1.2em] [&_.line]:block [&_.line]:whitespace-pre [&_.line-numbered]:leading-none [&_.line-numbered]:my-0 [&_.line-numbered]:py-0 [&_.line-numbered]:h-[1.2em] [&_.line-numbered]:whitespace-pre [&_*]:tracking-normal [&_*]:word-spacing-normal [&>pre.with-line-numbers]:pl-20 [&>pre.with-line-numbers]:relative [&>pre.with-line-numbers]:before:content-[''] [&>pre.with-line-numbers]:before:absolute [&>pre.with-line-numbers]:before:left-0 [&>pre.with-line-numbers]:before:top-4 [&>pre.with-line-numbers]:before:bottom-4 [&>pre.with-line-numbers]:before:w-12 [&>pre.with-line-numbers]:before:border-r [&>pre.with-line-numbers]:before:border-border/50 [&>pre.with-line-numbers]:before:bg-muted/30 [&_.line-numbered]:relative [&_.line-numbered]:pl-16 [&_.line-numbered]:block [&_.line-numbered]:before:absolute [&_.line-numbered]:before:left-0 [&_.line-numbered]:before:w-12 [&_.line-numbered]:before:content-[attr(data-line-number)] [&_.line-numbered]:before:text-right [&_.line-numbered]:before:text-muted-foreground/70 [&_.line-numbered:hover]:before:bg-muted/50 [&_.line-numbered:hover]:bg-muted/10 max-w-full border-0"[39m
+        [36m>[39m
+          [0m
+    [0m
+          [0m
+  [0m
+          [36m<pre>[39m
+            [36m<code>[39m
+              [0mMock highlighted code[0m
+            [36m</code>[39m
+          [36m</pre>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+   ✓ CodeBlock Components > CodeBlockTabs > should render tabs for files with empty content 5ms
+
+ Test Files  4 failed | 6 passed (10)
+      Tests  10 failed | 59 passed (69)
+   Start at  05:05:12
+   Duration  1.77s (transform 448ms, setup 100ms, collect 1.18s, tests 1.26s, environment 2.77s, prepare 489ms)
+

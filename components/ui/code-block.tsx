@@ -106,6 +106,7 @@ function CodeBlockCode({
 
   useEffect(() => {
     async function highlight() {
+      // Handle empty or whitespace-only code
       if (!code || code.trim() === "") {
         setHighlightedHtml(
           "<pre><code class='language-plaintext'>// No code content available</code></pre>",

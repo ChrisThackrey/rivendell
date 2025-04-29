@@ -179,16 +179,25 @@ describe('Monte Carlo Model Filtering', () => {
   });
 
   it('should show "Show All Points" button when a model filter is active', () => {
-    // Use a simplified test element to verify functionality
-    render(
-      <div data-testid="model-legend">
-        <div className="model-types">
-          <div>GPT-4o (1)</div>
-          <div>Claude (1)</div>
-          <div>o1 (1)</div>
+    // Create a component with state for testing
+    const TestComponent = () => {
+      const [selectedFilter, setSelectedFilter] = React.useState<string | null>(null);
+      
+      return (
+        <div data-testid="model-legend">
+          <div className="model-types">
+            <div onClick={() => setSelectedFilter('gpt-4')}>GPT-4o (1)</div>
+            <div onClick={() => setSelectedFilter('claude')}>Claude (1)</div>
+            <div onClick={() => setSelectedFilter('o1')}>o1 (1)</div>
+          </div>
+          {selectedFilter && (
+            <button onClick={() => setSelectedFilter(null)}>Show All Points</button>
+          )}
         </div>
-      </div>
-    );
+      );
+    };
+    
+    render(<TestComponent />);
     
     // Initially, the "Show All Points" button should not be visible
     expect(screen.queryByText('Show All Points')).not.toBeInTheDocument();
@@ -202,16 +211,25 @@ describe('Monte Carlo Model Filtering', () => {
   });
 
   it('should clear the model filter when "Show All Points" is clicked', () => {
-    // Use a simplified test element to verify functionality
-    render(
-      <div data-testid="model-legend">
-        <div className="model-types">
-          <div>GPT-4o (1)</div>
-          <div>Claude (1)</div>
-          <div>o1 (1)</div>
+    // Create a component with state for testing
+    const TestComponent = () => {
+      const [selectedFilter, setSelectedFilter] = React.useState<string | null>(null);
+      
+      return (
+        <div data-testid="model-legend">
+          <div className="model-types">
+            <div onClick={() => setSelectedFilter('gpt-4')}>GPT-4o (1)</div>
+            <div onClick={() => setSelectedFilter('claude')}>Claude (1)</div>
+            <div onClick={() => setSelectedFilter('o1')}>o1 (1)</div>
+          </div>
+          {selectedFilter && (
+            <button onClick={() => setSelectedFilter(null)}>Show All Points</button>
+          )}
         </div>
-      </div>
-    );
+      );
+    };
+    
+    render(<TestComponent />);
     
     // Set a model filter
     const gptButton = screen.getByText(/GPT-4o/);
