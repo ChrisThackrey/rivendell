@@ -50,6 +50,9 @@ web_modules/
 
 # Optional npm cache directory
 .npm
+# Optional yarn cache directory
+.yarn
+.yarnrc.yml
 
 # Optional eslint cache
 .eslintcache
@@ -214,4 +217,4 @@ dev-debug.log
 # OS specific
 # Task files
 tasks.json
-tasks/ 
+tasks/

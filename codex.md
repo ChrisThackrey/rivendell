@@ -2,6 +2,29 @@
 
 This project is a web application built with Next.js 15, Tailwind CSS, and TypeScript. It is a platform for creating and managing AI agents.
 
+## Important Rules and Instructions
+
+Carefully provide factually accurate, complete answers. Use sequential-thinking and clear-thought to plan and implement code changes. Use the filesystem and a web search if helpful to debug, identify, plan and fix any issues.
+
+- Follow the user's requirements and instructions provided carefully
+- First think step-by-step and describe your plan for what to build in pseudocode, written out in great detail. Confirm, then write code!
+- When running `npm run dev`, `npm run build`, or `npm run start` set a timeout or run it as a background process and then kill the process once done.
+- Fully implement all requested functionality and verify code is complete!, Leave NO todo's, placeholders or missing pieces.
+- Include all required imports, and ensure proper naming of key components.
+- Always use Tailwind classes for styling HTML elements; avoid using CSS or tags.
+- Use clear-thought, along with stochastic-thinking if helpful to debug, identify and fix any issues.
+- Use sequential-thinking and think deeply to plan and implement code.
+- Write tests to verify the code is working as expected, and run them after implementing or refactoring code.
+- Use playwright or puppeteer where needed to test and debug the application in the browser after running `npm run dev`, and find the root cause of any issues and the most recent information by performing a web search where needed to debug, identify, plan and fix any issues.
+- Write tests covering all edge cases and scenarios after implementing or refactoring code.
+- Write CHANGELOGS and JSDocs for all new components, functions, and features after implementing or refactoring code to ensure the code is well-documented and easily understandable.
+- Fully implement all requested functionality and verify code is complete!, Leave NO todo's, placeholders or missing pieces.
+- Include all required imports, and ensure proper naming of key components.
+- Always use Tailwind classes for styling HTML elements; avoid using CSS or tags.
+- Always run tests with `npm run test` after making changes to code files functionality to ensure proper storage, retrieval, and validation of code files.
+- When fixing issues related to code files or embeddings, make sure to run the integration tests to verify the complete workflow from LLM response to database storage and retrieval.
+- Always write new tests and run them against new edits when implementing or refactoring code, and think more to plan a new approach to fix and debug any tests that fail. Use testing implementations to validate any changes to the codebase that were made before considering the task complete, think and plan tests that test against the expected behavior, using memory tools, web search, clear-thought and sequential-thinking steps to integrate tests closely with the code. If a test keeps failing after 4 attempts, do not continue to test, but think more about what is causing test to fail and suggestions for code fixes, then check to make sure the test works and actually makes sense in context of the code.
+
 ## Additional Requirement Guidelines
 
 1. Project Setup
@@ -83,6 +106,64 @@ This project is a web application built with Next.js 15, Tailwind CSS, and TypeS
     - Never expose API keys or sensitive credentials on the client-side.
     - Implement proper authentication and authorization for API routes if needed.
 
+## Code Style & Conventions
+- **TypeScript**: Use strict types, interfaces preferred over types, avoid `any`, Zod schemas recommended
+- **Components**: PascalCase for components/types, camelCase for variables/functions, "use client" for client components
+- **Imports**: Order: React/Next.js, third-party, UI components, icons, utilities. Use `import type` for type-only imports
+- **Formatting**: Double quotes, 2-space indent, no semicolons, use Tailwind with cn() for conditional classes
+- **Functions**: Use descriptive names, event handlers with "handle" prefix, use default parameters and destructuring
+- **Error Handling**: Use error-reporting.ts module, early returns, try/catch with specific handling
+- Always run both `npm run lint` and `npm run typecheck` before submitting changes
+- Always run tests with `npm run test` after making changes to code files functionality to ensure proper storage, retrieval, and validation of code files
+- TypeScript strict mode with explicit typing
+- React components use functional style with hooks
+- Use absolute imports with @ alias (e.g., `@/components/button`)
+- Use Tailwind CSS with utility classes, combined with `cn` utility
+- Component files use PascalCase, utility files use camelCase
+- Radix UI components for accessible primitives
+- Handle errors with try/catch and appropriate reporting
+- React hooks prefer function form for state updates
+- Tests use Vitest with Testing Library
+- Three.js with React Three Fiber for 3D visualizations
+
+## Project Architecture
+
+### Core Services
+- **AI Service** (`lib/ai-service.ts`): Manages API calls to OpenAI and Anthropic models
+- **Embedding Service** (`lib/embedding-service.ts`): Handles vector embeddings for semantic search
+- **Monte Carlo Service** (`lib/monte-carlo-service.ts`): Provides data and clustering for 3D visualizations
+- **Document Service** (`lib/document-service.ts`): Manages storage and retrieval of code documents
+- **Supabase Client** (`lib/supabase-client.ts`): Database connection and operations
+
+### Key Components
+- **Pathway Visualizer** (`components/pathway-visualizer.tsx`): Displays solution pathways from multiple AI models
+- **Monte Carlo Visualizer** (`components/monte-carlo-visualizer.tsx`): 3D visualization of solution clusters
+- **Solution Card** (`components/solution-card.tsx`): Displays individual AI solutions with metrics
+- **Ensemble Selection** (`components/ensemble-selection-modal.tsx`): Configure multiple AI models to run in parallel
+
+### Data Flow
+1. User inputs query on the main page
+2. Tech stack and ensemble configurations are selected
+3. Multiple AI models generate structured solutions with 6 steps
+4. Solutions are stored in Supabase with vector embeddings
+5. Solutions are visualized in pathway format or 3D monte carlo visualization
+6. Similar solutions can be found using semantic search
+7. Final solution is aggregated from best parts of all solutions
+
+### Database Structure
+- Uses Supabase with PostgreSQL and pgvector extension
+- `documents` table stores solutions with vector embeddings
+- `match_documents` function for similarity search
+- Documents are organized by batch ID and run ID
+- Each solution includes metrics, code files, and evaluation scores
+
+### API Endpoints
+- `/api/openai` and `/api/anthropic`: Model-specific API proxies
+- `/api/structured-solution`: Generates complete 6-step solutions
+- `/api/embeddings`: Generates vector embeddings for search
+- `/api/evaluate`: Evaluates solution quality using AI
+- `/api/similar-solutions`: Finds semantically similar solutions
+
 ## Git Commit Rules
 
 - Make the head / title of the commit message brief
@@ -118,14 +199,3 @@ This project is a web application built with Next.js 15, Tailwind CSS, and TypeS
 - `npm run test:coverage` - Run tests with coverage reporting
 - Single test: `npx vitest run __tests__/path/to/test.test.ts`
 - Pattern test: `npx vitest run --testNamePattern="pattern"`
-
-## Code Style Guidelines
-
-- **TypeScript**: Use strict types, interfaces preferred over types, avoid `any`, Zod schemas recommended
-- **Components**: PascalCase for components/types, camelCase for variables/functions, "use client" for client components
-- **Imports**: Order: React/Next.js, third-party, UI components, icons, utilities. Use `import type` for type-only imports
-- **Formatting**: Double quotes, 2-space indent, no semicolons, use Tailwind with cn() for conditional classes
-- **Functions**: Use descriptive names, event handlers with "handle" prefix, use default parameters and destructuring
-- **Error Handling**: Use error-reporting.ts module, early returns, try/catch with specific handling
-- Always run both `npm run lint` and `npm run typecheck` before submitting changes
-- Always run tests with `npm run test` after making changes to code files functionality to ensure proper storage, retrieval, and validation of code files
