@@ -9,6 +9,7 @@ import { CodeFileProvider } from "../components/code-file-provider";
 import ConnectionStyles from "@/components/connection-styles";
 import { NavTabs } from "@/components/nav-tabs";
 import Script from "next/script";
+// The instrumentation.ts file now handles Sentry setup for server/edge
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -63,8 +64,13 @@ export default function RootLayout({
           </CodeFileProvider>
         </ErrorBoundary>
         <Toaster />
-        <Analytics />
-        <SpeedInsights />
+        {/* Only load Vercel Analytics in production */}
+        {process.env.NODE_ENV === 'production' && (
+          <>
+            <Analytics debug={false} />
+            <SpeedInsights debug={false} />
+          </>
+        )}
 
         {/* Script to silence specific console warnings */}
         <Script id="silence-warnings" strategy="afterInteractive">
@@ -73,9 +79,11 @@ export default function RootLayout({
             if (typeof window !== 'undefined') {
               const originalWarn = console.warn;
               console.warn = function(...args) {
-                if (args[0] && typeof args[0] === 'string' && 
-                   (args[0].includes('unreachable code after return statement') || 
-                    args[0].includes('node_modules'))) {
+                if (args[0] && typeof args[0] === 'string' &&
+                   (args[0].includes('unreachable code after return statement') ||
+                    args[0].includes('node_modules') ||
+                    args[0].includes('Loading failed for the <script> with source "http://localhost:3000/_vercel/insights/script.js"') ||
+                    args[0].includes('Loading failed for the <script> with source "http://localhost:3000/_vercel/speed-insights/script.js"'))) {
                   return; // Suppress the warning
                 }
                 originalWarn.apply(console, args);
