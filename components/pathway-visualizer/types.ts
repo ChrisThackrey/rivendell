@@ -1,8 +1,6 @@
-import { ModelConfig } from "@/components/ensemble-selection-modal";
+import type { ModelConfig } from "@/components/ensemble-selection-modal";
 import type { TechOption } from "@/components/tech-stack-modal";
-import type {
-  CodeFile
-} from "@/lib/supabase-client";
+import type { CodeFile } from "@/lib/supabase-client";
 
 export type Metric = {
   executionTime: string;
@@ -30,6 +28,7 @@ export type Solution = {
   };
   embeddings: {
     documentId: string | null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     metadata: any; // This should be more specifically typed in a real app
   };
   frequency?: {

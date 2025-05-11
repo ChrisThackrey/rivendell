@@ -18,6 +18,7 @@ import type {
   DocumentMetadata,
   ScoreMetrics,
 } from "@/lib/supabase-client";
+import type { Connection, SimilarityConnection } from "@/lib/types";
 import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -777,10 +778,7 @@ export default function PathwayVisualizer({
                 lineKey={lineKey}
                 onHover={handleLineHover}
                 highlightedConnections={highlightedConnections}
-                similarityConnections={similarityConnections.map(conn => ({
-                  ...conn,
-                  color: conn.color || '#0000ff'
-                }))}
+                similarityConnections={similarityConnections}
                 showConnections={showConnections}
               />
             </>

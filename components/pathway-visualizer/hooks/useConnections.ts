@@ -1,26 +1,26 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ALL_CONNECTIONS_DATA } from '../constants/pathwayConstants';
-import type { Connection, Step } from '../types';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ALL_CONNECTIONS_DATA } from "../constants/pathwayConstants";
+import type { Step } from "../types";
+import type { Connection, SimilarityConnection } from "@/lib/types";
 import {
     findDirectlyConnectedPaths as findDirectlyConnectedPathsUtil,
-} from '../utils/pathwayUtils';
+} from "../utils/pathwayUtils";
 // We might need searchSimilarDocuments from embedding-service if that logic moves here
-// import { searchSimilarDocuments } from '@/lib/embedding-service';
+// import { searchSimilarDocuments } from "@/lib/embedding-service";
 
 export interface ConnectionsReturn {
   highlightedConnections: Set<string>;
-  similarityConnections: (Connection & { color: string })[];
+  similarityConnections: SimilarityConnection[];
   visibleConnections: Connection[]; // Connections based on ALL_CONNECTIONS_DATA and visible steps
   handleLineHover: (fromId: string, toId: string, isHovering: boolean) => void;
   isConnectionHighlighted: (fromId: string, toId: string) => boolean;
   getVisibleConnectionsForSteps: (visibleSteps: Step[]) => void; // This will set internal state
   findAndSetSimilarityConnections: (currentSteps: Step[], currentBatchId: string | null) => Promise<void>;
-  // setVisibleConnections: React.Dispatch<React.SetStateAction<Connection[]>>; // If needed by parent
 }
 
 export function useConnections(initialSteps: Step[]): ConnectionsReturn {
   const [highlightedConnections, setHighlightedConnections] = useState<Set<string>>(new Set());
-  const [similarityConnections, setSimilarityConnections] = useState<(Connection & { color: string })[]>([]);
+  const [similarityConnections, setSimilarityConnections] = useState<SimilarityConnection[]>([]);
   const [visibleConnections, setVisibleConnections] = useState<Connection[]>([]);
 
   // Memoize forward/backward maps from ALL_CONNECTIONS_DATA
@@ -69,6 +69,7 @@ export function useConnections(initialSteps: Step[]): ConnectionsReturn {
     // For this hook, we might expect the calling component to compute these and pass them,
     // or this function becomes very complex / takes many dependencies.
     // For now, let's assume it will eventually call a service or more abstracted utils.
+    // eslint-disable-next-line no-console
     console.log("Placeholder: findAndSetSimilarityConnections called with steps:", currentSteps.length, "batch:", currentBatchId);
     // This is where the logic from findSimilarSolutionsAcrossStepsLocal would go,
     // ideally refactored to be less DOM-dependent or accept DOM-querying functions as parameters.

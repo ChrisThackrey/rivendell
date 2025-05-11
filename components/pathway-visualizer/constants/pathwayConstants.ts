@@ -1,4 +1,4 @@
-import type { Connection } from "../types"; // Assuming types.ts is one level up
+import type { Connection } from "@/lib/types";
 
 // Define the hardcoded connections for the diagram
 export const ALL_CONNECTIONS_DATA: Connection[] = [
