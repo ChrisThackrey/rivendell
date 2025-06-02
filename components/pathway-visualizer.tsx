@@ -72,7 +72,8 @@ export default function PathwayVisualizer({
     availableBatches,
     selectedBatchId,
     setSelectedBatchId,
-    loadAvailableBatches: fetchAvailableBatches
+    loadAvailableBatches: fetchAvailableBatches,
+    isConnected
   } = useBatchManager(initialBatchId);
 
   // Extract carousel manager from the hook with all returned values
@@ -658,6 +659,20 @@ export default function PathwayVisualizer({
             <div className="h-12 w-12 rounded-full border-4 border-t-blue-500 border-b-blue-700 border-l-blue-600 border-r-blue-600 animate-spin"></div>
             <p className="text-gray-500">Loading solutions...</p>
           </div>
+        </div>
+      )}
+
+      {/* Connection error message */}
+      {!isConnected && (
+        <div className="mb-8 w-full p-4 bg-red-50 border border-red-200 rounded-md text-red-700">
+          <p className="font-medium">Database Connection Error</p>
+          <p className="text-sm mt-1">Could not connect to the database. Please check your connection and try again.</p>
+          <button
+            onClick={() => fetchAvailableBatches()}
+            className="mt-2 px-3 py-1 text-sm bg-red-100 hover:bg-red-200 text-red-700 rounded-md transition-colors"
+          >
+            Retry Connection
+          </button>
         </div>
       )}
 

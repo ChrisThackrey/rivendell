@@ -1,10 +1,9 @@
-// Temporarily disabled Sentry import to fix instrumentation error
-// import * as Sentry from "@sentry/nextjs";
+// Re-enabled Sentry import with Next.js instrumentation API
+import * as Sentry from "@sentry/nextjs";
 
 /**
- * Simple console-based error reporter (Sentry replacement)
- * This is a temporary implementation to fix instrumentation issues
- * TODO: Re-enable Sentry integration after fixing instrumentation issues
+ * Error reporting module with Sentry integration
+ * This uses the Next.js instrumentation API for Sentry
  */
 
 /**
@@ -23,11 +22,16 @@ export function captureException(
       ? error
       : new Error(typeof error === "string" ? error : "Unknown error");
 
-  // Log to console
+  // Log to console for local debugging
   console.error("ERROR:", errorObject);
   if (context) {
     console.error("Additional context:", context);
   }
+
+  // Report to Sentry with context
+  Sentry.captureException(errorObject, {
+    extra: context
+  });
 
   return errorObject;
 }
@@ -44,9 +48,9 @@ export function setUserContext(userData: {
   username?: string;
   [key: string]: unknown;
 }) {
-  // When Sentry is re-enabled:
-  // Sentry.setUser(userData);
-  console.log("User context set (Sentry disabled):", userData);
+  // Set user context in Sentry
+  Sentry.setUser(userData);
+  console.log("User context set:", userData);
 }
 
 /**
@@ -62,9 +66,9 @@ export function addBreadcrumb(breadcrumb: {
   data?: Record<string, unknown>;
   level?: "fatal" | "error" | "warning" | "info" | "debug";
 }) {
-  // When Sentry is re-enabled:
-  // Sentry.addBreadcrumb(breadcrumb);
-  console.log("Breadcrumb added (Sentry disabled):", breadcrumb);
+  // Add breadcrumb to Sentry
+  Sentry.addBreadcrumb(breadcrumb);
+  console.log("Breadcrumb added:", breadcrumb);
 }
 
 /**

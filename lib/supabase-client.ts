@@ -5,6 +5,14 @@ import type { Database } from "./types/database.types";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+// Log environment variable presence for debugging
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn("Supabase environment variables are missing:", {
+    urlPresent: !!supabaseUrl,
+    keyPresent: !!supabaseAnonKey
+  });
+}
+
 // Type definition for code files
 export type CodeFile = {
   filename: string;
@@ -86,15 +94,29 @@ export interface VectorSearchResult {
   similarity: number;
 }
 
-// Create Supabase client
+// Create Supabase client with default public Supabase URL if not set
 export const supabase = createClient<Database>(
-  supabaseUrl || "",
-  supabaseAnonKey || "",
+  supabaseUrl || "https://public.database.url.supabase.co", // Use an appropriate fallback
+  supabaseAnonKey || "public-anon-key", // Use an appropriate fallback
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true
+    }
+  }
 );
 
 // Check if Supabase client is connected
 export async function checkSupabaseConnection(): Promise<boolean> {
   try {
+    // Check if environment variables are set
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error("Supabase configuration is missing. Please set environment variables.");
+      return false;
+    }
+
+    // Try to perform a simple query
+    console.log("Checking Supabase connection...");
     const { error } = await supabase.from("documents").select("id").limit(1);
 
     // If there's an error with the query
@@ -112,6 +134,7 @@ export async function checkSupabaseConnection(): Promise<boolean> {
       return false;
     }
 
+    console.log("Successfully connected to Supabase");
     return true;
   } catch (err) {
     console.error("Failed to connect to Supabase:", err);
